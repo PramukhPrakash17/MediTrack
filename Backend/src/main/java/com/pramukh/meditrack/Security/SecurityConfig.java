@@ -38,7 +38,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/signup", "/login").permitAll()
+                        .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
                         .requestMatchers("/**").hasRole("DOCTOR")
                         .anyRequest().authenticated())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
