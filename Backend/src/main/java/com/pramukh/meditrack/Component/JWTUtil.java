@@ -13,8 +13,8 @@ import java.util.Date;
 
 @Component
 public class JWTUtil {
-    private final String secret = "IMissYouMom";
-    SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private final String secret = "IMissYouMomIMissYouMomIMissYouMom12";
+    private final SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
     public String generateToken(String email, Role role) {
         return Jwts.builder().setSubject(email).claim("role", role.name()).setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + 10 * 60 * 60 * 1000)).signWith(key, SignatureAlgorithm.HS256).compact();
