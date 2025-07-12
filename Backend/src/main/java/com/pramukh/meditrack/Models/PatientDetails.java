@@ -14,20 +14,20 @@ import java.util.Date;
 public class PatientDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private int PatientId;
+    private int patientId;
 
-    private String FirstName;
+    private String firstName;
 
-    private String LastName;
+    private String lastName;
 
-    private Date DateOfBirth;
+    private Date dateOfBirth;
 
     @Column(unique=true)
-    private String InsuranceNumber;
+    private String insuranceNumber;
 
-    private String Address;
+    private String address;
 
-    private String PhoneNumber;
+    private String phoneNumber;
 
     private String email;
 
