@@ -5,6 +5,7 @@ import com.pramukh.meditrack.DTO.LoginDto;
 import com.pramukh.meditrack.DTO.SignUpDTO;
 import com.pramukh.meditrack.Models.User;
 import com.pramukh.meditrack.Repository.UserRepository;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("api/auth")
+@Tag(name = "Authentication API's")
 public class AuthController {
     private AuthenticationManager authManager;
     private UserRepository userRepo;
