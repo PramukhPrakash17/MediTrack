@@ -1,4 +1,4 @@
-package com.pramukh.meditrack.Models;
+package com.pramukh.meditrack.Models.LabModels;
 
 import lombok.Data;
 import org.springframework.data.annotation.Id;
@@ -12,7 +12,9 @@ import java.util.List;
 public class LabData {
     @Id
     private String insuranceNumber;
-    private List<LabReport> labTests = new ArrayList<>();
+    private List<DateWiseReports> dateWiseReports = new ArrayList<>();
 }
+
+
 
 
