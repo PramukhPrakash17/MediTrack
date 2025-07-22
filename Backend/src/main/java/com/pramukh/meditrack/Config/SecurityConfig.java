@@ -36,9 +36,10 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/signup", "/api/auth/login").permitAll()
-                        .requestMatchers("/**").hasRole("DOCTOR")
-                        .anyRequest().authenticated())
+                        .requestMatchers("/api/auth/signup", "/api/auth/login" , "/v3/api-docs/**","/swagger-ui/**").permitAll()
+                        .requestMatchers("/api/labreport/**").permitAll()
+                        .anyRequest().hasRole("DOCTOR"))
+
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
