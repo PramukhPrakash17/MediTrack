@@ -17,7 +17,7 @@ public class JWTUtil {
     private final SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
 
     public String generateToken(String email, Role role) {
-        return Jwts.builder().setSubject(email).claim("role", role.name()).setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + 10 * 60 * 60 * 1000)).signWith(key, SignatureAlgorithm.HS256).compact();
+        return Jwts.builder().setSubject(email).claim("role", role.name()).setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + 60 * 24 * 60 * 60 * 1000)).signWith(key, SignatureAlgorithm.HS256).compact();
     }
 
     public String extractEmail(String token) {
