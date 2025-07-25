@@ -3,6 +3,7 @@ package com.pramukh.meditrack.Controller;
 import com.pramukh.meditrack.Models.LabModels.DateWiseReports;
 import com.pramukh.meditrack.Models.LabModels.LabReport;
 import com.pramukh.meditrack.Service.LabReportService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/labreport")
+@Tag(name = "Lab Report API's")
 public class LabReportController {
 
     private LabReportService labReportService;
