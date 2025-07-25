@@ -1,6 +1,7 @@
 package com.pramukh.meditrack.Controller;
 
-import com.pramukh.meditrack.Models.Medicine;
+import com.pramukh.meditrack.DTO.MedicineListDto;
+import com.pramukh.meditrack.Models.MedicineModel.Medicine;
 import com.pramukh.meditrack.Service.MedicineService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ public class MedicineController {
     }
 
     @PostMapping("/addMedicine/{insuranceNumber}")
-    public ResponseEntity<String> addMedicine(@PathVariable String insuranceNumber, @RequestBody List<Medicine> medicines) {
+    public ResponseEntity<String> addMedicine(@PathVariable String insuranceNumber, @RequestBody MedicineListDto medicines) {
         String result = medicineService.addMedicine(insuranceNumber, medicines);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }

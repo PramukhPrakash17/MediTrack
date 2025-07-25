@@ -1,14 +1,20 @@
 package com.pramukh.meditrack.Service;
 
-import com.pramukh.meditrack.Models.MedicalData;
-import com.pramukh.meditrack.Models.Medicine;
+import com.pramukh.meditrack.DTO.MedicineDto;
+import com.pramukh.meditrack.DTO.MedicineListDto;
+import com.pramukh.meditrack.ExceptionHandler.MedicineNotFoundException;
+import com.pramukh.meditrack.Models.MedicineModel.DateWiseMedicine;
+import com.pramukh.meditrack.Models.MedicineModel.MedicalData;
+import com.pramukh.meditrack.Models.MedicineModel.Medicine;
 import com.pramukh.meditrack.Repository.MedicineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class MedicineService {
@@ -22,45 +28,55 @@ public class MedicineService {
     }
 
 
-    public String addMedicine(String insuranceNumber, List<Medicine> medicines) {
-        MedicalData data;
-        for (Medicine medicine : medicines) {
-            medicine.setPrescribedAt(Instant.now());
-        }
-        Optional<MedicalData> existingData = medicineRepository.findById(insuranceNumber);
-        if (existingData.isPresent()) {
-            data = existingData.get();
-        } else {
-            data = new MedicalData();
-            data.setInsuranceNumber(insuranceNumber);
-        }
-        List<Medicine> prevMedicines = data.getMedicines();
+    public String addMedicine(String insuranceNumber, MedicineListDto medicineDtoList) {
+        MedicalData data = medicineRepository.findById(insuranceNumber).orElseGet(() -> {
+            MedicalData newMedicalData = new MedicalData();
+            newMedicalData.setInsuranceNumber(insuranceNumber);
+            return newMedicalData;
+        });
 
-        prevMedicines.addAll(medicines);
-        data.setMedicines(prevMedicines);
-        medicineRepository.save(data);
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
+        DateWiseMedicine todaysMedicine = null;
+        for (DateWiseMedicine medicine : data.getDateWiseMedicines()) {
+            if (medicine.getDate().equals(today)) {
+                todaysMedicine = medicine;
+                break;
+            }
+        }
+
+        if (todaysMedicine == null) {
+            todaysMedicine = new DateWiseMedicine();
+            todaysMedicine.setDate(today);
+            data.getDateWiseMedicines().add(todaysMedicine);
+        }
+
+        List<Medicine> medsList = medicineDtoList.getMedicines().stream().map((dto) -> {
+            Medicine m = new Medicine();
+            m.setName(dto.getName());
+            m.setDosage(dto.getDosage());
+            m.setFrequency(dto.getFrequency());
+            m.setStartDate(dto.getStartDate());
+            m.setEndDate(dto.getEndDate());
+            m.setInstructions(dto.getInstructions());
+            return m;
+        }).collect(Collectors.toList());
+        todaysMedicine.getMedicines().addAll(medsList);
 
         return "Medicine added successfully";
     }
 
-    public List<Medicine> getMedicines(String insuranceNumber) {
-        Optional<MedicalData> medicalData = medicineRepository.findById(insuranceNumber);
-        if (medicalData.isPresent()) {
-            return medicalData.get().getMedicines();
-        } else {
-            throw new RuntimeException("No medical data found for insurance number: " + insuranceNumber);
-        }
+    public List<DateWiseMedicine> getMedicines(String insuranceNumber) {
+        MedicalData medicalData = medicineRepository.findById(insuranceNumber).orElseThrow(() -> new MedicineNotFoundException("No medical data found for insurance number: " + insuranceNumber));
+        return medicalData.getDateWiseMedicines();
     }
 
-    //Similarly ike the above getMedicines method, you can implement a method which return only the number of last 5 entries in the list
-    public List<Medicine> getLastFiveMedicines(String insuranceNumber,int limit) {
+    public DateWiseMedicine getLastMedicines(String insuranceNumber) {
+        List<DateWiseMedicine> medicines = getMedicines(insuranceNumber);
+        return medicines.get(medicines.size() - 1);
 
-        List<Medicine> medicines = getMedicines(insuranceNumber);
-        int size = medicines.size();
-        if (size <= limit) {
-            return medicines;
-        } else {
-            return medicines.subList(size - limit, size);
-        }
     }
 }
+
+
+
+

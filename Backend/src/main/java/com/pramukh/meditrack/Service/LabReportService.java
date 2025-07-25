@@ -5,6 +5,7 @@ import com.google.cloud.documentai.v1.DocumentProcessorServiceClient;
 import com.google.cloud.documentai.v1.ProcessRequest;
 import com.google.cloud.documentai.v1.RawDocument;
 import com.google.protobuf.ByteString;
+import com.pramukh.meditrack.ExceptionHandler.LabReportNotFoundException;
 import com.pramukh.meditrack.Models.LabModels.DateWiseReports;
 import com.pramukh.meditrack.Models.LabModels.LabData;
 import com.pramukh.meditrack.Models.LabModels.LabReport;
@@ -117,13 +118,13 @@ public class LabReportService {
 
      public List<DateWiseReports> getLabReport(String insuranceNumber) {
          LabData labData = labRepo.findById(insuranceNumber)
-                 .orElseThrow(() -> new IllegalArgumentException("No lab data found for insurance number: " + insuranceNumber));
+                 .orElseThrow(() -> new LabReportNotFoundException("No lab data found for insurance number: " + insuranceNumber));
          return labData.getDateWiseReports();
      }
 
      public DateWiseReports getLatestLabReports(String insuranceNumber) {
             LabData labData = labRepo.findById(insuranceNumber)
-                    .orElseThrow(() -> new IllegalArgumentException("No lab data found for insurance number: " + insuranceNumber));
+                    .orElseThrow(() -> new LabReportNotFoundException("No lab data found for insurance number: " + insuranceNumber));
 
             List<DateWiseReports> dateWiseReports = labData.getDateWiseReports();
             DateWiseReports latestReport = dateWiseReports.get(dateWiseReports.size()-1);
