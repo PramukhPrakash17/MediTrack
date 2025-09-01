@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -50,12 +51,20 @@ public class NotesService {
     }
 
     public List<DateWiseNotes> getNotes(String insuranceNumber) {
-        Notes notes = notesRepository.findById(insuranceNumber).orElseThrow(()-> new NotesNotFoundException("No Notes found for insurance number: " + insuranceNumber));
+        Notes notes = notesRepository.findById(insuranceNumber).orElse(null);
+        if(notes==null || notes.getDateWiseNotes()==null)
+        {
+            return Collections.emptyList();
+        }
         return notes.getDateWiseNotes();
     }
 
     public DateWiseNotes getLatestNotes(String insuranceNumber) {
-        Notes notes =  notesRepository.findById(insuranceNumber).orElseThrow(() -> new NotesNotFoundException("No Notes found for insurance number: " + insuranceNumber));
+        Notes notes =  notesRepository.findById(insuranceNumber).orElse(null);
+        if(notes==null || notes.getDateWiseNotes()==null)
+        {
+            return null;
+        }
         List<DateWiseNotes> dateWiseNotes = notes.getDateWiseNotes();
         return dateWiseNotes.get(dateWiseNotes.size() - 1);
     }
