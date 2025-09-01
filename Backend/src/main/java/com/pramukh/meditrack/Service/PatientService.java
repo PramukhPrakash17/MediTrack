@@ -37,7 +37,7 @@ public class PatientService {
             return new PatientResponseDto(patientDetails.getFirstName(), patientDetails.getLastName(), patientDetails.getDateOfBirth(), patientDetails.getAddress(), patientDetails.getPhoneNumber());
         }
         else {
-            throw new PatientNotFoundException("No patient found with insurance number: " + insuranceNumber);
+            return null;
         }
     }
 }

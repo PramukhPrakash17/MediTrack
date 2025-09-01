@@ -1,7 +1,7 @@
 package com.pramukh.meditrack.Service;
 
 import com.pramukh.meditrack.DTO.MedicineDto;
-import com.pramukh.meditrack.DTO.MedicineListDto;
+
 import com.pramukh.meditrack.ExceptionHandler.MedicineNotFoundException;
 import com.pramukh.meditrack.Models.MedicineModel.DateWiseMedicine;
 import com.pramukh.meditrack.Models.MedicineModel.MedicalData;
@@ -12,8 +12,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+
 import java.util.stream.Collectors;
 
 @Service
@@ -28,13 +29,14 @@ public class MedicineService {
     }
 
 
-    public String addMedicine(String insuranceNumber, MedicineListDto medicineDtoList) {
+    public String addMedicine(String insuranceNumber, List<MedicineDto> medicineDtoList) {
         MedicalData data = medicineRepository.findById(insuranceNumber).orElseGet(() -> {
             MedicalData newMedicalData = new MedicalData();
             newMedicalData.setInsuranceNumber(insuranceNumber);
             return newMedicalData;
         });
 
+        System.out.println("Step2");
         LocalDate today = LocalDate.now(ZoneId.systemDefault());
         DateWiseMedicine todaysMedicine = null;
         for (DateWiseMedicine medicine : data.getDateWiseMedicines()) {
@@ -50,7 +52,7 @@ public class MedicineService {
             data.getDateWiseMedicines().add(todaysMedicine);
         }
 
-        List<Medicine> medsList = medicineDtoList.getMedicines().stream().map((dto) -> {
+        List<Medicine> medsList = medicineDtoList.stream().map((dto) -> {
             Medicine m = new Medicine();
             m.setName(dto.getName());
             m.setDosage(dto.getDosage());
@@ -61,17 +63,25 @@ public class MedicineService {
             return m;
         }).collect(Collectors.toList());
         todaysMedicine.getMedicines().addAll(medsList);
-
+        medicineRepository.save(data);
         return "Medicine added successfully";
     }
 
     public List<DateWiseMedicine> getMedicines(String insuranceNumber) {
-        MedicalData medicalData = medicineRepository.findById(insuranceNumber).orElseThrow(() -> new MedicineNotFoundException("No medical data found for insurance number: " + insuranceNumber));
+        MedicalData medicalData = medicineRepository.findById(insuranceNumber).orElse(null);
+        if(medicalData==null || medicalData.getDateWiseMedicines()==null)
+        {
+            return Collections.emptyList();
+        }
         return medicalData.getDateWiseMedicines();
     }
 
     public DateWiseMedicine getLastMedicines(String insuranceNumber) {
         List<DateWiseMedicine> medicines = getMedicines(insuranceNumber);
+        if(medicines.isEmpty())
+        {
+            return null;
+        }
         return medicines.get(medicines.size() - 1);
 
     }

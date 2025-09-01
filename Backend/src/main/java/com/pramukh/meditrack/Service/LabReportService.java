@@ -5,7 +5,6 @@ import com.google.cloud.documentai.v1.DocumentProcessorServiceClient;
 import com.google.cloud.documentai.v1.ProcessRequest;
 import com.google.cloud.documentai.v1.RawDocument;
 import com.google.protobuf.ByteString;
-import com.pramukh.meditrack.ExceptionHandler.LabReportNotFoundException;
 import com.pramukh.meditrack.Models.LabModels.DateWiseReports;
 import com.pramukh.meditrack.Models.LabModels.LabData;
 import com.pramukh.meditrack.Models.LabModels.LabReport;
@@ -19,8 +18,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+
 
 @Service
 public class LabReportService {
@@ -44,20 +44,10 @@ public class LabReportService {
     }
 
     public String addLabReports(String insuranceNumber, MultipartFile file) throws IOException {
-        String procName = String.format(
-                "projects/%s/locations/%s/processors/%s", projectId, location, processorId
-        );
+        System.out.println("Entered addLabReports method");
+        String procName = String.format("projects/%s/locations/%s/processors/%s", projectId, location, processorId);
 
-        Document doc = client.processDocument(
-                ProcessRequest.newBuilder()
-                        .setName(procName)
-                        .setRawDocument(
-                                RawDocument.newBuilder()
-                                        .setContent(ByteString.copyFrom(file.getBytes()))
-                                        .setMimeType(file.getContentType())
-                        )
-                        .build()
-        ).getDocument();
+        Document doc = client.processDocument(ProcessRequest.newBuilder().setName(procName).setRawDocument(RawDocument.newBuilder().setContent(ByteString.copyFrom(file.getBytes())).setMimeType(file.getContentType())).build()).getDocument();
 
         List<LabReport> newReports = new ArrayList<>();
         for (Document.Entity row : doc.getEntitiesList()) {
@@ -83,6 +73,8 @@ public class LabReportService {
             return ld;
         });
 
+        System.out.println("Lab Report found for insurance number");
+
         LocalDate today = LocalDate.now(ZoneId.systemDefault());
         DateWiseReports todayBucket = null;
         for (DateWiseReports bucket : data.getDateWiseReports()) {
@@ -92,15 +84,19 @@ public class LabReportService {
             }
         }
 
+        System.out.println("Checking for existing date bucket");
+
         if (todayBucket == null) {
             todayBucket = new DateWiseReports();
             todayBucket.setUploadDate(today);
             data.getDateWiseReports().add(todayBucket);
         }
 
+        System.out.println("Adding new lab reports to today's bucket");
+
         todayBucket.getLabReports().addAll(newReports);
         labRepo.save(data);
-
+        System.out.println("Lab reports added successfully for insurance number: " + insuranceNumber);
         return "Lab reports added successfully";
     }
 
@@ -116,19 +112,22 @@ public class LabReportService {
     }
 
 
-     public List<DateWiseReports> getLabReport(String insuranceNumber) {
-         LabData labData = labRepo.findById(insuranceNumber)
-                 .orElseThrow(() -> new LabReportNotFoundException("No lab data found for insurance number: " + insuranceNumber));
-         return labData.getDateWiseReports();
-     }
+    public List<DateWiseReports> getLabReport(String insuranceNumber) {
+        LabData labData = labRepo.findById(insuranceNumber).orElse(null);
+        if (labData == null || labData.getDateWiseReports() == null) {
+            return Collections.emptyList();
+        }
+        return labData.getDateWiseReports();
+    }
 
-     public DateWiseReports getLatestLabReports(String insuranceNumber) {
-            LabData labData = labRepo.findById(insuranceNumber)
-                    .orElseThrow(() -> new LabReportNotFoundException("No lab data found for insurance number: " + insuranceNumber));
+    public DateWiseReports getLatestLabReports(String insuranceNumber) {
+        LabData labData = labRepo.findById(insuranceNumber).orElse(null);
+        if (labData == null || labData.getDateWiseReports() == null) {
+            return null;
+        }
+        List<DateWiseReports> dateWiseReports = labData.getDateWiseReports();
+        DateWiseReports latestReport = dateWiseReports.get(dateWiseReports.size() - 1);
 
-            List<DateWiseReports> dateWiseReports = labData.getDateWiseReports();
-            DateWiseReports latestReport = dateWiseReports.get(dateWiseReports.size()-1);
-
-            return latestReport;
-     }
+        return latestReport;
+    }
 }

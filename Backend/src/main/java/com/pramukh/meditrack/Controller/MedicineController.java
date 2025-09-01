@@ -1,6 +1,8 @@
 package com.pramukh.meditrack.Controller;
 
-import com.pramukh.meditrack.DTO.MedicineListDto;
+import com.pramukh.meditrack.DTO.MedicineDto;
+
+import com.pramukh.meditrack.Models.MedicineModel.DateWiseMedicine;
 import com.pramukh.meditrack.Models.MedicineModel.Medicine;
 import com.pramukh.meditrack.Service.MedicineService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +15,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/medicine")
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS}, allowedHeaders = {"Authorization", "Content-Type", "Accept"})
 @Tag(name = "Medicine API's")
 public class MedicineController {
 
@@ -24,20 +27,20 @@ public class MedicineController {
     }
 
     @PostMapping("/addMedicine/{insuranceNumber}")
-    public ResponseEntity<String> addMedicine(@PathVariable String insuranceNumber, @RequestBody MedicineListDto medicines) {
+    public ResponseEntity<String> addMedicine(@PathVariable String insuranceNumber, @RequestBody List<MedicineDto> medicines) {
         String result = medicineService.addMedicine(insuranceNumber, medicines);
         return new ResponseEntity<>(result, HttpStatus.OK);
     }
 
     @GetMapping("/getMedicines/{insuranceNumber}")
-    public ResponseEntity<List<Medicine>> getMedicines(@PathVariable String insuranceNumber) {
-        List<Medicine> medicines = medicineService.getMedicines(insuranceNumber);
+    public ResponseEntity<List<DateWiseMedicine>> getMedicines(@PathVariable String insuranceNumber) {
+        List<DateWiseMedicine> medicines = medicineService.getMedicines(insuranceNumber);
         return new ResponseEntity<>(medicines, HttpStatus.OK);
     }
 
     @GetMapping("/getLast5Medicines/{insuranceNumber}")
-    public ResponseEntity<List<Medicine>> getLastFiveMedcines(@PathVariable String insuranceNumber , @RequestParam(defaultValue = "5") int limit) {
-        List<Medicine> medicines = medicineService.getLastFiveMedicines(insuranceNumber, limit);
+    public ResponseEntity<DateWiseMedicine> getLastFiveMedcines(@PathVariable String insuranceNumber) {
+        DateWiseMedicine medicines = medicineService.getLastMedicines(insuranceNumber);
         return new ResponseEntity<>(medicines, HttpStatus.OK);
     }
 }
