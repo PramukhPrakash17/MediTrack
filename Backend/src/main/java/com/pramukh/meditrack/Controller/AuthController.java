@@ -3,6 +3,7 @@ package com.pramukh.meditrack.Controller;
 import com.pramukh.meditrack.Component.JWTUtil;
 import com.pramukh.meditrack.DTO.LoginDto;
 import com.pramukh.meditrack.DTO.SignUpDTO;
+import com.pramukh.meditrack.DTO.UserNameDto;
 import com.pramukh.meditrack.Models.User;
 import com.pramukh.meditrack.Repository.UserRepository;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,12 +13,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS}, allowedHeaders = {"Authorization", "Content-Type", "Accept"})
 @RequestMapping("api/auth")
 @Tag(name = "Authentication API's")
 public class AuthController {
@@ -55,5 +54,12 @@ public class AuthController {
         User user = userRepo.findByEmail(req.getEmail()).orElseThrow(() -> new UsernameNotFoundException("User not found"));
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole());
         return ResponseEntity.ok(token);
+    }
+
+    @GetMapping("/getName")
+    public ResponseEntity<String> getUserName(@RequestParam String email){
+        User user = userRepo.findByEmail(email).orElse(null);
+        String fullName = user.getFirstName() +" "+ user.getLastName();
+        return ResponseEntity.ok(fullName);
     }
 }

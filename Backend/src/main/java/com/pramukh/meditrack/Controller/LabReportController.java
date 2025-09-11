@@ -18,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/labreport")
 @Tag(name = "Lab Report API's")
+@CrossOrigin(origins = "*", methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.OPTIONS}, allowedHeaders = {"Authorization", "Content-Type", "Accept"})
 public class LabReportController {
 
     private LabReportService labReportService;
