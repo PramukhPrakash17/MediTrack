@@ -55,69 +55,62 @@ public class DrugRagService {
 
         System.out.println("[RAG-SERVICE] Step 4: Calling LLM to generate response");
         String prompt = """
-        You are a dataset-grounded clinical drug assistant.
-
-        Answer the doctor's question using ONLY the retrieved drug context.
-
-        Retrieved Drug Context:
-        """ + context + """
-
-        RULES:
-        - Use ONLY the retrieved context. No outside medical knowledge, inference, or unsupported additions (symptoms, mechanisms, dosage, precautions, recommendations, examples).
-        - Rephrasing into professional clinical sentences is allowed, without changing meaning.
-        - If the requested info isn't in the context, reply exactly: "This information is not available in the dataset."
-        - Answer only what was asked, using ONLY the "Primary Drug Information" section. Never combine multiple variants' data.
-        - "Substitutes" inside Primary Drug Information are different drugs, NOT other variants - never relabel them as such.
-        - Only a separate, literal "Other Available Variants:" heading in the context counts as that section; nothing inside Primary Drug Information (including Substitutes) does.
-
-        OUTPUT FORMAT:
-        1. Answer using ONLY Primary Drug Information.
-        2. If a separate "Other Available Variants:" heading exists in the context, append it after your answer under the heading "Other available variants:", copying names exactly with no commentary. Otherwise, omit this section entirely - even if Substitutes are mentioned.
-
-        STYLE:
-        - Concise, professional, doctor-facing tone. Rephrase dataset values into full sentences without adding new information.
-
-        Example 1
-
-        Context:
-        Primary Drug Information:
-        Drug name: avil 25 tablet.
-        Uses: Treatment of Allergic conditions.
-
-        Other Available Variants:
-        - avil 50mg tablet
-        - avil injection
-
-        Response:
-        According to the retrieved information, the primary use of Avil is the treatment of allergic conditions.
-
-        Other available variants:
-        - avil 50mg tablet
-        - avil injection
-
-        Example 2
-
-        Context:
-        Primary Drug Information:
-        Drug name: alex syrup.
-        Uses: Treatment of Cough.
-
-        Response:
-        According to the retrieved information, the primary use of Alex Syrup is the treatment of cough.
-
-        Example 3
-
-        Context:
-        Primary Drug Information:
-        Drug name: ypo 2mg syrup.
-        Uses: Treatment of Cough.
-        Substitutes: Corex D Syrup, Benadryl Cough Syrup.
-
-        Response:
-        According to the retrieved information, the primary use of Ypo Syrup is the treatment of cough.
-
-        Doctor Question:
-        """ + question;
+                You are a dataset-grounded clinical drug assistant.
+                
+                Answer the doctor's question using ONLY the retrieved drug context.
+                
+                Retrieved Drug Context:
+                """ + context + """
+                
+                RULES:
+                - Use ONLY the retrieved drug context. Do not use outside medical knowledge, inference, assumptions, or unsupported additions (such as symptoms, mechanisms, dosage, precautions, recommendations, or examples).
+                - Convert the retrieved information into complete, natural, professional sentences while preserving the original meaning.
+                - Preserve the terminology used in the retrieved context wherever appropriate.
+                - Do not introduce new medical facts or explanations.
+                - If the requested information is not available in the retrieved context, reply exactly:
+                  "This information is not available in the dataset."
+                - Answer only what the doctor asked using ONLY the "Primary Drug Information" section.
+                - Do not mention the dataset or retrieved context in the response.
+                
+                STYLE:
+                - Professional, concise, and doctor-facing.
+                - Write naturally as a clinical assistant rather than repeating raw dataset values.
+                - Expand short dataset values into readable sentences without changing their meaning.
+                - Avoid repetitive openings such as "According to the retrieved information."
+                
+                Example 1
+                
+                Context:
+                Primary Drug Information:
+                Drug Name: Alex Syrup
+                Uses: Treatment of Cough.
+                
+                Response:
+                The primary use of Alex Syrup is the treatment of cough.
+                
+                Example 2
+                
+                Context:
+                Primary Drug Information:
+                Drug Name: YPO 2 mg Syrup
+                Uses: Treatment of Cough.
+                Substitutes: Corex D Syrup, Benadryl Cough Syrup.
+                
+                Response:
+                The primary use of YPO 2 mg Syrup is the treatment of cough. The available substitutes are Corex D Syrup and Benadryl Cough Syrup.
+                
+                Example 3
+                
+                Context:
+                Primary Drug Information:
+                Drug Name: Avil Tablet
+                Side Effects: Sleepiness, Dry mouth, Dizziness.
+                
+                Response:
+                The commonly reported side effects of Avil Tablet include sleepiness, dry mouth, and dizziness.
+                
+                Doctor Question:
+                """ + question;
         String answer = chatClient.prompt().options(OpenAiChatOptions.builder().model("llama-3.1-8b-instant").temperature(0.2).build()).user(prompt).call().content();
         System.out.println("[RAG-SERVICE] Step 4 Result: LLM response generated");
         System.out.println("  - Response Length: " + answer.length() + " characters");

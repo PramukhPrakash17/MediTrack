@@ -8,7 +8,6 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -27,28 +26,20 @@ public class GenerateContextService {
         if (resolution.specificFormulation()) {
             System.out.println("[CONTEXT-SERVICE] Step 3.1 Result: Using specific formulation");
             System.out.println("  - Formulation: " + resolution.matchedDrugName());
-            return getContextByDrugName(resolution.matchedDrugName(), documentTypes, question, List.of());
+            return getContextByDrugName(resolution.matchedDrugName(), documentTypes, question);
         }
         List<DrugMapping> variants = drugRepository.findVariantsByNormalizedDrugName(resolution.normalizedDrugName());
         if (variants.isEmpty()) {
             throw new RuntimeException("No variants found for: " + resolution.normalizedDrugName());
         }
         DrugMapping primaryVariant = variants.get(0);
-        List<String> otherVariants = new ArrayList<>();
-        for (DrugMapping variant : variants) {
-            String variantName = variant.getDrugName();
-            if (!variantName.equalsIgnoreCase(primaryVariant.getDrugName()) && !otherVariants.contains(variantName)) {
-                otherVariants.add(variantName);
-            }
-        }
         System.out.println("[CONTEXT-SERVICE] Step 3.1 Result: Variants retrieved");
         System.out.println("  - Total Variants: " + variants.size());
         System.out.println("  - Primary Variant: " + primaryVariant.getDrugName());
-        System.out.println("  - Other Variants: " + otherVariants);
-        return getContextByDrugName(primaryVariant.getDrugName(), documentTypes, question, otherVariants);
+        return getContextByDrugName(primaryVariant.getDrugName(), documentTypes, question);
     }
 
-    private String getContextByDrugName(String drugName, List<String> documentTypes, String question, List<String> otherVariants) {
+    private String getContextByDrugName(String drugName, List<String> documentTypes, String question) {
         StringBuilder contextBuilder = new StringBuilder();
         contextBuilder.append("Primary Drug Information:\n");
         contextBuilder.append("Primary Drug Name: ").append(drugName).append("\n\n");
@@ -66,12 +57,6 @@ public class GenerateContextService {
                 contextBuilder.append("\n\n");
             }
             stepCounter++;
-        }
-        if (!otherVariants.isEmpty()) {
-            contextBuilder.append("Other Available Variants:\n");
-            for (String variant : otherVariants) {
-                contextBuilder.append("- ").append(variant).append("\n");
-            }
         }
         System.out.println("[CONTEXT-SERVICE] Step 3 Complete: All context generated successfully");
         System.out.println(contextBuilder.toString());
