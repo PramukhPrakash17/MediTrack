@@ -10,74 +10,81 @@ import java.util.List;
 
 @Service
 public class RagService {
+
+    private static final int TOP_K = 8;
+    private static final double SIMILARITY_THRESHOLD = 0.55;
+
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
 
-    public RagService(VectorStore vectorStore,  ChatClient.Builder chatClientBuilder) {
+    public RagService(VectorStore vectorStore, ChatClient.Builder chatClientBuilder) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClientBuilder.build();
     }
 
     public String getAnswer(String question) {
-        long ToatlTimeStart = System.nanoTime();
+
+        long totalTimeStart = System.nanoTime();
+
+        /*
+         * Convert the user's question into a better retrieval query.
+         *
+         * Example:
+         * "What are the symptoms of varicose veins?"
+         *
+         * becomes:
+         * "What are the symptoms of varicose veins?
+         * symptoms signs clinical manifestations"
+         */
+        String retrievalQuery = buildRetrievalQuery(question);
 
         long searchTimeStart = System.nanoTime();
-        SearchRequest searchRequest = SearchRequest.builder().query(question).topK(5).build();
+
+        SearchRequest searchRequest = SearchRequest.builder().query(retrievalQuery).topK(TOP_K).similarityThreshold(SIMILARITY_THRESHOLD).build();
+
         List<Document> documents = vectorStore.similaritySearch(searchRequest);
+
         long searchTimeEnd = System.nanoTime();
 
-        long contextStart = System.nanoTime();
-        StringBuilder contextBuilder = new StringBuilder();
-        for (Document document : documents) {
-            contextBuilder.append(document.getText());
-            contextBuilder.append("\n\n");
+        /*
+         * Do not call the LLM when no relevant PDF chunks were found.
+         */
+        if (documents == null || documents.isEmpty()) {
+            return "The provided PDF context does not contain enough information to answer this question.";
         }
-        String context = contextBuilder.toString();
+
+        long contextStart = System.nanoTime();
+
+        String context = buildContext(documents);
 
         String prompt =
                 """
-                You are an AI-powered clinical assistant chatbot.
+                You are a medical PDF assistant.
         
-                Use ONLY the provided medical context.
+                Answer the user's question using ONLY the provided PDF context.
         
-                Analyze the patient's symptoms and provide a concise clinical-style response.
+                Rules:
+                - Use ONLY the provided PDF context to answer the question.
+                - Do not use outside knowledge or invent any information.
+                - If the answer is not present in the provided context, reply exactly:
+                  "The provided PDF context does not contain enough information to answer this question."
+                - Answer naturally based on the retrieved context.
+                - Preserve the wording of the PDF wherever possible.
+                - Do not unnecessarily paraphrase or rewrite the information.
+                - Combine information from multiple retrieved sections only when needed to fully answer the question.
+                - Include only information relevant to the user's question.
+                - Keep the answer concise (2–4 sentences unless more detail is requested).
+                - Do not add assumptions, explanations, or medical advice that are not explicitly present in the context.
+                - Mention medications or treatments only if they are explicitly present in the retrieved context.
+                - Do not use headings, bullet points, markdown, or additional sections.
+                - Do not mention the PDF or say phrases such as "According to the PDF" or "Based on the provided context."
         
-                Follow this format STRICTLY:
+                PDF Context:
+                %s
         
-                Clinical Observation:
-                - short observation 1
-                - short observation 2
-        
-                Most Likely Condition:
-                - disease name
-        
-                Why this condition matches:
-                - short reason 1
-                - short reason 2
-        
-                Possible Causes:
-                - cause 1
-                - cause 2
-        
-                IMPORTANT RULES:
-                - Include "Suggested Medications" section ONLY if medication information is explicitly present in the context.
-                - If medication information is not present, completely omit that section.
-                - Never write:
-                  "None specified"
-                  "Not mentioned"
-                  "No medication available"
-                - Keep the response concise and professional.
-                - Avoid repeating the same information.
-                - Do not generate unnecessary explanations.
-                - End with a short clinical recommendation.
-        
-                Context:
-                """ + context +
-
-                        """
-                
-                        Patient Symptoms:
-                        """ + question;
+                User Question:
+                %s
+                """.formatted(context, question);
 
         long contextEnd = System.nanoTime();
 
@@ -85,23 +92,92 @@ public class RagService {
 
         String answer = chatClient.prompt().user(prompt).call().content();
 
-        long llmend = System.nanoTime();
-
+        long llmEnd = System.nanoTime();
         long totalEnd = System.nanoTime();
 
-
         System.out.println("========== RAG PERFORMANCE ==========");
+        System.out.println("Original question: " + question);
+        System.out.println("Retrieval query: " + retrievalQuery);
         System.out.println("Vector search time: " + toMs(searchTimeEnd - searchTimeStart) + " ms");
         System.out.println("Prompt/context build time: " + toMs(contextEnd - contextStart) + " ms");
-        System.out.println("LLM generation time: " + toMs(llmend - llmStart) + " ms");
-        System.out.println("Total request time: " + toMs(totalEnd - ToatlTimeStart) + " ms");
+        System.out.println("LLM generation time: " + toMs(llmEnd - llmStart) + " ms");
+        System.out.println("Total request time: " + toMs(totalEnd - totalTimeStart) + " ms");
         System.out.println("Retrieved chunks: " + documents.size());
         System.out.println("=====================================");
+
         return answer;
+    }
+
+    /**
+     * Expands the question with words commonly used in medical PDF sections.
+     * This helps the vector search retrieve the correct section.
+     */
+    private String buildRetrievalQuery(String question) {
+
+        String normalizedQuestion = question.toLowerCase();
+
+        if (containsAny(normalizedQuestion, "symptom", "symptoms", "sign", "signs")) {
+            return question + " symptoms signs clinical manifestations";
+        }
+
+        if (containsAny(normalizedQuestion, "cause", "causes", "caused", "reason", "risk factor", "risk factors")) {
+            return question + " causes risk factors predisposing factors";
+        }
+
+        if (containsAny(normalizedQuestion, "treatment", "treat", "therapy", "medicine", "medication", "cure")) {
+            return question + " treatment therapy medication symptom relief surgery";
+        }
+
+        if (containsAny(normalizedQuestion, "diagnosis", "diagnose", "test", "tests", "detected", "detect")) {
+            return question + " diagnosis examination tests detection";
+        }
+
+        if (containsAny(normalizedQuestion, "prognosis", "outcome", "recovery")) {
+            return question + " prognosis outcome recovery";
+        }
+
+        if (containsAny(normalizedQuestion, "what is", "what are", "definition", "define", "meaning")) {
+            return question + " definition description";
+        }
+
+        return question;
+    }
+
+    /**
+     * Checks whether the question contains at least one keyword.
+     */
+    private boolean containsAny(String text, String... keywords) {
+        for (String keyword : keywords) {
+            if (text.contains(keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Combines the retrieved PDF documents into one context.
+     * Each retrieved chunk is kept separate.
+     */
+    private String buildContext(List<Document> documents) {
+
+        StringBuilder contextBuilder = new StringBuilder();
+
+        for (int index = 0; index < documents.size(); index++) {
+
+            Document document = documents.get(index);
+
+            contextBuilder.append("[Retrieved PDF Chunk ").append(index + 1).append("]\n");
+
+            contextBuilder.append(document.getText());
+            contextBuilder.append("\n\n");
+        }
+
+        return contextBuilder.toString();
     }
 
     private long toMs(long nanoTime) {
         return nanoTime / 1_000_000;
     }
-
 }
