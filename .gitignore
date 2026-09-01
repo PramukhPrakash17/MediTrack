@@ -49,6 +49,7 @@ coverage/
 *.h5
 *.ckpt
 training_results/
+**/FineTuning/data/
 **/outputs/
 **/test images/
 **/Output/
