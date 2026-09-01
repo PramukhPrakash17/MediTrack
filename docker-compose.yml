@@ -3,9 +3,8 @@ services:
     image: mongo:8
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
+    env_file:
+      - ./Backend/.env
     volumes:
       - meditrack_mongodb:/data/db
     healthcheck:
@@ -19,9 +18,8 @@ services:
     image: mysql:8.4
     ports:
       - "3307:3306"
-    environment:
-      MYSQL_DATABASE: meditrack
-      MYSQL_ROOT_PASSWORD: "Guddu@123"
+    env_file:
+      - ./Backend/.env
     volumes:
       - meditrack_mysql_data:/var/lib/mysql
     healthcheck:
@@ -38,10 +36,8 @@ services:
     image: pgvector/pgvector:pg16
     ports:
       - "5432:5432"
-    environment:
-      POSTGRES_DB: ragdb
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "root"
+    env_file:
+      - ./RAG/.env
     volumes:
       - existing_pgvector_data:/var/lib/postgresql/data
     healthcheck:
@@ -55,9 +51,11 @@ services:
       context: ./Backend
     ports:
       - "8080:8080"
+    env_file:
+      - ./Backend/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/meditrack
-      SPRING_DATA_MONGODB_URI: mongodb://root:password@mongo:27017/Meds?authSource=admin
+      MONGO_HOST: mongo
     depends_on:
       mysql:
         condition: service_healthy
@@ -69,10 +67,11 @@ services:
       context: ./RAG
     ports:
       - "8081:8081"
+    env_file:
+      - ./RAG/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragdb
       SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
-      GROQ_API_KEY: ***REMOVED***
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -84,10 +83,10 @@ services:
       context: ./Drug-RAG-Service
     ports:
       - "8082:8082"
+    env_file:
+      - ./Drug-RAG-Service/.env
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragdb
-      GROQ_API_KEY: ***REMOVED***
-      GEMINI_API_KEY: ***REMOVED***
     depends_on:
       postgres:
         condition: service_healthy
