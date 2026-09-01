@@ -6,7 +6,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 
-import java.sql.SQLOutput;
+
 import java.util.List;
 
 
@@ -76,6 +76,7 @@ public class DrugRagService {
                 - Professional, concise, and doctor-facing.
                 - Write naturally as a clinical assistant rather than repeating raw dataset values.
                 - Expand short dataset values into readable sentences without changing their meaning.
+                - Slightly favor a bit more explanation over a bare minimum answer when the retrieved context supports it, while still using only that context.
                 - Avoid repetitive openings such as "According to the retrieved information."
                 
                 Example 1
@@ -111,7 +112,7 @@ public class DrugRagService {
                 
                 Doctor Question:
                 """ + question;
-        String answer = chatClient.prompt().options(OpenAiChatOptions.builder().model("llama-3.1-8b-instant").temperature(0.2).build()).user(prompt).call().content();
+        String answer = chatClient.prompt().options(OpenAiChatOptions.builder().model("openai/gpt-oss-120b").temperature(0.2).build()).user(prompt).call().content();
         System.out.println("[RAG-SERVICE] Step 4 Result: LLM response generated");
         System.out.println("  - Response Length: " + answer.length() + " characters");
         System.out.println("[RAG-SERVICE] Returning to controller");

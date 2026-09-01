@@ -1,0 +1,160 @@
+services:
+  mongo:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - meditrack_mongodb:/data/db
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: meditrack
+      MYSQL_ROOT_PASSWORD: "Guddu@123"
+    volumes:
+      - meditrack_mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mysqladmin ping -h localhost -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ragdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "root"
+    volumes:
+      - existing_pgvector_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ragdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./Backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/meditrack
+      SPRING_DATA_MONGODB_URI: mongodb://root:password@mongo:27017/Meds?authSource=admin
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  rag:
+    build:
+      context: ./RAG
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragdb
+      SPRING_AI_OLLAMA_BASE_URL: http://host.docker.internal:11434
+      GROQ_API_KEY: ***REMOVED***
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  drug-rag-service:
+    build:
+      context: ./Drug-RAG-Service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ragdb
+      GROQ_API_KEY: ***REMOVED***
+      GEMINI_API_KEY: ***REMOVED***
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  xray-service:
+    build:
+      context: ./Xray-Service
+    ports:
+      - "8083:8083"
+    env_file:
+      - ./Xray-Service/.env
+    volumes:
+      - orchestrator_temp_uploads:/app/temp_uploads
+
+  meditrack-orchestrator:
+    build:
+      context: ./MediTrack-Orchestrator
+    ports:
+      - "8094:8094"
+    env_file:
+      - ./MediTrack-Orchestrator/.env
+    environment:
+      SYMPTOMS_MCP_URL: http://rag:8081/mcp
+      DRUG_MCP_URL: http://drug-rag-service:8082/mcp
+      XRAY_MCP_URL: http://xray-service:8083/mcp
+      BACKEND_MCP_URL: http://backend:8080/mcp
+      BACKEND_BASE_URL: http://backend:8080
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      TEMP_UPLOAD_DIR: /app/temp_uploads
+      WAIT_FOR_URLS: http://rag:8081/mcp,http://drug-rag-service:8082/mcp,http://xray-service:8083/mcp,http://backend:8080/mcp
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - orchestrator_temp_uploads:/app/temp_uploads
+    depends_on:
+      rag:
+        condition: service_started
+      drug-rag-service:
+        condition: service_started
+      xray-service:
+        condition: service_started
+      backend:
+        condition: service_started
+    command:
+      [
+        "sh",
+        "-c",
+        "python scripts/wait_for_services.py && uvicorn app.server:app --host 0.0.0.0 --port 8094",
+      ]
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      meditrack-orchestrator:
+        condition: service_started
+      backend:
+        condition: service_started
+
+volumes:
+  existing_pgvector_data:
+    external: true
+    name: 7f6a143b5608de5b88228bac47aace900bf47ea3f2ecdc6a684d68e57ec1e77d
+  meditrack_mongodb:
+    external: true
+    name: backend_mongodb
+  meditrack_mysql_data:
+  orchestrator_temp_uploads:

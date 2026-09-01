@@ -9,14 +9,16 @@ import React, {
 
 // Toggle this to switch storage between localStorage and sessionStorage
 const STORAGE = window.localStorage; // or: window.sessionStorage
-const TOKEN_KEY = "authToken";
+const LOGGED_IN_KEY = "isLoggedIn";
 const USER_EMAIL_KEY = "userEmail";
 const USER_NAME_KEY = "userName";
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(() => STORAGE.getItem(TOKEN_KEY) || null);
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    () => STORAGE.getItem(LOGGED_IN_KEY) === "true"
+  );
   const [userEmail, setUserEmail] = useState(
     () => STORAGE.getItem(USER_EMAIL_KEY) || null
   );
@@ -25,12 +27,12 @@ export const AuthProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    if (token) {
-      STORAGE.setItem(TOKEN_KEY, token);
+    if (isLoggedIn) {
+      STORAGE.setItem(LOGGED_IN_KEY, "true");
     } else {
-      STORAGE.removeItem(TOKEN_KEY);
+      STORAGE.removeItem(LOGGED_IN_KEY);
     }
-  }, [token]);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     if (userEmail) {
@@ -71,35 +73,34 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const loginWithToken = useCallback((jwtToken, email) => {
-    setToken(jwtToken);
+  const login = useCallback((email) => {
+    setIsLoggedIn(true);
     setUserEmail(email);
   }, []);
 
   // Fetch user name on mount if we have email but no name
   useEffect(() => {
-    if (userEmail && !userName && token) {
+    if (userEmail && !userName && isLoggedIn) {
       setUserNameFromEmail(userEmail);
     }
-  }, [userEmail, userName, token, setUserNameFromEmail]);
+  }, [userEmail, userName, isLoggedIn, setUserNameFromEmail]);
 
   const logout = useCallback(() => {
-    setToken(null);
+    setIsLoggedIn(false);
     setUserEmail(null);
     setUserName(null);
   }, []);
 
   const value = useMemo(
     () => ({
-      token,
       userEmail,
       userName,
-      isAuthenticated: Boolean(token),
-      loginWithToken,
+      isAuthenticated: isLoggedIn,
+      login,
       setUserNameFromEmail,
       logout,
     }),
-    [token, userEmail, userName, loginWithToken, setUserNameFromEmail, logout]
+    [isLoggedIn, userEmail, userName, login, setUserNameFromEmail, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

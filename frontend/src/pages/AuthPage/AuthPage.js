@@ -5,8 +5,8 @@ import { createApiClient } from "../../api/client";
 
 const AuthPage = () => {
   const navigate = useNavigate();
-  const { loginWithToken, setUserNameFromEmail } = useAuth();
-  const api = createApiClient(() => null); // no auth for login/signup
+  const { login, setUserNameFromEmail } = useAuth();
+  const api = createApiClient();
 
   const [mode, setMode] = useState("login"); // 'login' | 'signup'
   const [form, setForm] = useState({
@@ -30,36 +30,23 @@ const AuthPage = () => {
     setSuccess("");
     try {
       if (mode === "login") {
-        const res = await api.post(
-          "/api/auth/login",
-          {
-            email: form.email,
-            password: form.password,
-          },
-          { auth: false }
-        );
-        // Expecting token string or object { token }
-        const token =
-          typeof res === "string"
-            ? res
-            : res.token || res.jwt || res.accessToken;
-        if (!token) throw new Error("No token returned by server");
-        loginWithToken(token, form.email);
+        await api.post("/api/auth/login", {
+          email: form.email,
+          password: form.password,
+        });
+        // No token to store anymore — a successful call (no thrown error) means the credentials were valid
+        login(form.email);
         // Fetch user name after login
         await setUserNameFromEmail(form.email);
         navigate("/");
       } else {
-        await api.post(
-          "/api/auth/signup",
-          {
-            firstName: form.firstName,
-            lastName: form.lastName,
-            email: form.email,
-            password: form.password,
-            role: form.role || "DOCTOR",
-          },
-          { auth: false }
-        );
+        await api.post("/api/auth/signup", {
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          password: form.password,
+          role: form.role || "DOCTOR",
+        });
         // Signup successful - show success message and switch to login
         setSuccess(
           "Registration successful! Please login with your credentials."

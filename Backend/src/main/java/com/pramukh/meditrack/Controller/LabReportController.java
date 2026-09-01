@@ -1,5 +1,6 @@
 package com.pramukh.meditrack.Controller;
 
+import com.pramukh.meditrack.DTO.LabReportSummaryEntry;
 import com.pramukh.meditrack.Models.LabModels.DateWiseReports;
 import com.pramukh.meditrack.Models.LabModels.LabReport;
 import com.pramukh.meditrack.Service.LabReportService;
@@ -46,8 +47,8 @@ public class LabReportController {
     }
 
     @GetMapping("/getLatestLabReport/{insuranceNumber}")
-    public ResponseEntity<DateWiseReports> getLatestLabReport(@PathVariable String insuranceNumber) {
-        DateWiseReports labreports = labReportService.getLatestLabReports(insuranceNumber);
+    public ResponseEntity<List<LabReportSummaryEntry>> getLatestLabReport(@PathVariable String insuranceNumber) {
+        List<LabReportSummaryEntry> labreports = labReportService.getLatestLabReports(insuranceNumber);
         return new ResponseEntity<>(labreports, HttpStatus.OK);
     }
 }

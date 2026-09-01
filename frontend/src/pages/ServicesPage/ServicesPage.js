@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useApi } from "../../api/withAuthClient";
+import { usePatient } from "../../patient/PatientContext";
 import "./ServicesPage.css";
 
 const ServicesPage = () => {
   const api = useApi();
+  const { setActiveInsuranceNumber, activeInsuranceNumber, lastChange } =
+    usePatient();
   const [insuranceNumber, setInsuranceNumber] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(false);
@@ -99,12 +102,65 @@ const ServicesPage = () => {
     }
   }, [activeTab, patientData.patientInfo, detailedLabReports]);
 
+  // Silently refresh whichever data a chat-driven write just changed, for
+  // whichever patient is currently active - a targeted re-fetch, not a full
+  // searchPatient() (which would reset forms/pagination/loading state).
+  useEffect(() => {
+    if (lastChange.token === 0 || !activeInsuranceNumber) return;
+
+    if (lastChange.kinds.includes("medicines")) {
+      api
+        .get(`/api/medicine/getLast5Medicines/${activeInsuranceNumber}`)
+        .then((response) =>
+          setPatientData((prev) => ({ ...prev, medicines: response }))
+        )
+        .catch((err) =>
+          console.error("Failed to refresh medicines after chat update:", err)
+        );
+      if (activeTab === "medicines") fetchDetailedMedicines();
+    }
+
+    if (lastChange.kinds.includes("notes")) {
+      api
+        .get(`/api/doctornotes/getlatestnotes/${activeInsuranceNumber}`)
+        .then((response) =>
+          setPatientData((prev) => ({ ...prev, notes: response }))
+        )
+        .catch((err) =>
+          console.error("Failed to refresh notes after chat update:", err)
+        );
+      if (activeTab === "notes") fetchDetailedNotes();
+    }
+
+    if (lastChange.kinds.includes("labReports")) {
+      api
+        .get(`/api/labreport/getLatestLabReport/${activeInsuranceNumber}`)
+        .then((response) =>
+          setPatientData((prev) => ({ ...prev, labReports: response }))
+        )
+        .catch((err) =>
+          console.error(
+            "Failed to refresh lab reports after chat update:",
+            err
+          )
+        );
+      if (activeTab === "labReports") fetchDetailedLabReports();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastChange.token]);
+
   const tabs = [
-    { id: "all", label: "All" },
-    { id: "medicines", label: "Medicines" },
-    { id: "notes", label: "Notes" },
-    { id: "labReports", label: "Lab Reports" },
+    { id: "all", label: "All", icon: "📋" },
+    { id: "medicines", label: "Medicines", icon: "💊" },
+    { id: "notes", label: "Notes", icon: "📝" },
+    { id: "labReports", label: "Lab Reports", icon: "🧪" },
   ];
+
+  const statusBadgeClass = (status) => {
+    if (status === "Ongoing") return "status-badge status-ongoing";
+    if (status === "Completed") return "status-badge status-completed";
+    return "status-badge status-pending";
+  };
 
   const fetchDetailedMedicines = async () => {
     if (!insuranceNumber.trim()) return;
@@ -201,6 +257,7 @@ const ServicesPage = () => {
       };
 
       setPatientData(newData);
+      setActiveInsuranceNumber(insuranceNumber);
     } catch (err) {
       setError(err.message || "Failed to fetch patient data");
     } finally {
@@ -451,7 +508,7 @@ const ServicesPage = () => {
         <div className="no-data">
           <p>No patient information available for this insurance number</p>
           <button onClick={openAddPatientForm} className="add-patient-btn">
-            Add Patient
+            ➕ Add Patient
           </button>
         </div>
       );
@@ -461,30 +518,34 @@ const ServicesPage = () => {
       patientData.patientInfo;
     const fullName = `${firstName} ${lastName}`;
     const formattedDate = new Date(dateOfBirth).toLocaleDateString();
+    const initials = `${firstName?.[0] || ""}${lastName?.[0] || ""}`.toUpperCase();
 
     return (
       <div className="section">
-        <h3>Patient Information</h3>
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Insurance Number</th>
-              <th>Full Name</th>
-              <th>Date of Birth</th>
-              <th>Address</th>
-              <th>Phone Number</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>{insuranceNumber}</td>
-              <td>{fullName}</td>
-              <td>{formattedDate}</td>
-              <td>{address}</td>
-              <td>{phoneNumber}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="patient-card">
+          <div className="patient-avatar">{initials || "?"}</div>
+          <div className="patient-card-body">
+            <h3 className="patient-name">{fullName}</h3>
+            <div className="patient-info-grid">
+              <div className="info-chip">
+                <span className="info-chip-label">Insurance Number</span>
+                <span className="info-chip-value">{insuranceNumber}</span>
+              </div>
+              <div className="info-chip">
+                <span className="info-chip-label">Date of Birth</span>
+                <span className="info-chip-value">{formattedDate}</span>
+              </div>
+              <div className="info-chip">
+                <span className="info-chip-label">Phone Number</span>
+                <span className="info-chip-value">{phoneNumber}</span>
+              </div>
+              <div className="info-chip">
+                <span className="info-chip-label">Address</span>
+                <span className="info-chip-value">{address}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -498,7 +559,7 @@ const ServicesPage = () => {
       );
     }
 
-    // Group medicines by date for pagination
+    // Group medicines by date for pagination, newest date first
     const allDateGroups = [];
     detailedMedicines.forEach((dateGroup) => {
       allDateGroups.push({
@@ -506,6 +567,7 @@ const ServicesPage = () => {
         medicines: dateGroup.medicines,
       });
     });
+    allDateGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Calculate pagination based on date groups
     const totalPages = Math.ceil(allDateGroups.length / itemsPerPage);
@@ -549,17 +611,25 @@ const ServicesPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {dateGroup.medicines.map((medicine, index) => (
-                  <tr key={index}>
-                    <td>{medicine.name}</td>
-                    <td>{medicine.dosage}</td>
-                    <td>{medicine.frequency}</td>
-                    <td>
-                      {getMedicineStatus(medicine.startDate, medicine.endDate)}
-                    </td>
-                    <td>{medicine.instructions}</td>
-                  </tr>
-                ))}
+                {dateGroup.medicines.map((medicine, index) => {
+                  const status = getMedicineStatus(
+                    medicine.startDate,
+                    medicine.endDate
+                  );
+                  return (
+                    <tr key={index}>
+                      <td>{medicine.name}</td>
+                      <td>{medicine.dosage}</td>
+                      <td>{medicine.frequency}</td>
+                      <td>
+                        <span className={statusBadgeClass(status)}>
+                          {status}
+                        </span>
+                      </td>
+                      <td>{medicine.instructions}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -600,7 +670,7 @@ const ServicesPage = () => {
       );
     }
 
-    // Group notes by date for pagination
+    // Group notes by date for pagination, newest date first
     const allDateGroups = [];
     detailedNotes.forEach((dateGroup) => {
       allDateGroups.push({
@@ -608,6 +678,7 @@ const ServicesPage = () => {
         doctornotes: dateGroup.doctornotes,
       });
     });
+    allDateGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Calculate pagination based on date groups
     const totalPages = Math.ceil(allDateGroups.length / itemsPerPage);
@@ -678,7 +749,7 @@ const ServicesPage = () => {
       );
     }
 
-    // Group lab reports by date for pagination
+    // Group lab reports by date for pagination, newest date first
     const allDateGroups = [];
     detailedLabReports.forEach((dateGroup) => {
       allDateGroups.push({
@@ -686,13 +757,9 @@ const ServicesPage = () => {
         labReports: dateGroup.labReports,
       });
     });
+    allDateGroups.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     // Calculate pagination based on date groups - 1 date per page
-    console.log("Debug pagination:", {
-      allDateGroupsLength: allDateGroups.length,
-      labReportsPerPage,
-      totalPages: Math.ceil(allDateGroups.length / labReportsPerPage),
-    });
     const totalPages = Math.ceil(allDateGroups.length / labReportsPerPage);
     const startIndex = (currentLabReportsPage - 1) * labReportsPerPage;
     const endIndex = startIndex + labReportsPerPage;
@@ -733,12 +800,7 @@ const ServicesPage = () => {
         ))}
 
         {/* Pagination */}
-        {console.log("Lab Reports Pagination condition:", {
-          totalPages,
-          shouldShow: totalPages > 1,
-        })}
-        {/* Temporarily show pagination for debugging */}
-        {true && (
+        {totalPages > 1 && (
           <div className="pagination">
             <button
               onClick={() =>
@@ -768,7 +830,7 @@ const ServicesPage = () => {
   };
 
   const renderMedicinesTable = () => {
-    if (!patientData.medicines) {
+    if (!patientData.medicines || patientData.medicines.length === 0) {
       return (
         <div className="no-data">
           No medicine data available for this patient
@@ -776,14 +838,7 @@ const ServicesPage = () => {
       );
     }
 
-    const { date, medicines } = patientData.medicines;
-    if (!medicines || medicines.length === 0) {
-      return (
-        <div className="no-data">
-          No medicine data available for this patient
-        </div>
-      );
-    }
+    const medicines = patientData.medicines;
 
     const getMedicineStatus = (startDate, endDate) => {
       const today = new Date();
@@ -801,10 +856,11 @@ const ServicesPage = () => {
 
     return (
       <div className="section">
-        <h3>Last 5 Medicines - {date}</h3>
+        <h3>Last 5 Medicines</h3>
         <table className="data-table">
           <thead>
             <tr>
+              <th>Date</th>
               <th>Name</th>
               <th>Dosage</th>
               <th>Frequency</th>
@@ -813,17 +869,24 @@ const ServicesPage = () => {
             </tr>
           </thead>
           <tbody>
-            {medicines.map((medicine, index) => (
-              <tr key={index}>
-                <td>{medicine.name}</td>
-                <td>{medicine.dosage}</td>
-                <td>{medicine.frequency}</td>
-                <td>
-                  {getMedicineStatus(medicine.startDate, medicine.endDate)}
-                </td>
-                <td>{medicine.instructions}</td>
-              </tr>
-            ))}
+            {medicines.map((medicine, index) => {
+              const status = getMedicineStatus(
+                medicine.startDate,
+                medicine.endDate
+              );
+              return (
+                <tr key={index}>
+                  <td>{medicine.recordedDate}</td>
+                  <td>{medicine.name}</td>
+                  <td>{medicine.dosage}</td>
+                  <td>{medicine.frequency}</td>
+                  <td>
+                    <span className={statusBadgeClass(status)}>{status}</span>
+                  </td>
+                  <td>{medicine.instructions}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -831,32 +894,29 @@ const ServicesPage = () => {
   };
 
   const renderNotesTable = () => {
-    if (!patientData.notes) {
+    if (!patientData.notes || patientData.notes.length === 0) {
       return (
         <div className="no-data">No notes data available for this patient</div>
       );
     }
 
-    const { date, doctornotes } = patientData.notes;
-    if (!doctornotes || doctornotes.length === 0) {
-      return (
-        <div className="no-data">No notes data available for this patient</div>
-      );
-    }
+    const notes = patientData.notes;
 
     return (
       <div className="section">
-        <h3>Latest Doctor Notes - {date}</h3>
+        <h3>Last 5 Doctor Notes</h3>
         <table className="data-table">
           <thead>
             <tr>
+              <th>Date</th>
               <th>Note</th>
             </tr>
           </thead>
           <tbody>
-            {doctornotes.map((note, index) => (
+            {notes.map((entry, index) => (
               <tr key={index}>
-                <td>{note}</td>
+                <td>{entry.recordedDate}</td>
+                <td>{entry.note}</td>
               </tr>
             ))}
           </tbody>
@@ -866,7 +926,7 @@ const ServicesPage = () => {
   };
 
   const renderLabReportsTable = () => {
-    if (!patientData.labReports) {
+    if (!patientData.labReports || patientData.labReports.length === 0) {
       return (
         <div className="no-data">
           No lab reports data available for this patient
@@ -874,21 +934,15 @@ const ServicesPage = () => {
       );
     }
 
-    const { uploadDate, labReports } = patientData.labReports;
-    if (!labReports || labReports.length === 0) {
-      return (
-        <div className="no-data">
-          No lab reports data available for this patient
-        </div>
-      );
-    }
+    const labReports = patientData.labReports;
 
     return (
       <div className="section">
-        <h3>Latest Lab Report - {uploadDate}</h3>
+        <h3>Last 5 Lab Report Results</h3>
         <table className="data-table">
           <thead>
             <tr>
+              <th>Date</th>
               <th>Test Name</th>
               <th>Value</th>
               <th>Unit</th>
@@ -898,6 +952,7 @@ const ServicesPage = () => {
           <tbody>
             {labReports.map((report, index) => (
               <tr key={index}>
+                <td>{report.recordedDate}</td>
                 <td>{report.testName}</td>
                 <td>{report.value}</td>
                 <td>{report.unit}</td>
@@ -954,7 +1009,11 @@ const ServicesPage = () => {
   };
 
   return (
-    <div className="services-page">
+    <div
+      className={`services-page ${
+        patientData.patientInfo === null ? "services-page-centered" : ""
+      }`}
+    >
       <div className="search-section">
         <h2>Patient Record Search</h2>
         <div className="search-container">
@@ -971,21 +1030,46 @@ const ServicesPage = () => {
             disabled={loading}
             className="search-button"
           >
-            {loading ? "Searching..." : "Search"}
+            {loading ? "Searching..." : "🔍 Search"}
           </button>
           {patientData.patientInfo !== null && (
             <>
               <button onClick={openAddDataForm} className="add-data-button">
-                Add Data
+                ➕ Add Data
               </button>
               <button onClick={getAiSummary} className="ai-summary-button">
-                {summaryLoading ? "Getting Summary..." : "AI Summary"}
+                {summaryLoading ? "Getting Summary..." : "✨ AI Summary"}
               </button>
             </>
           )}
         </div>
         {error && <div className="error-message">{error}</div>}
       </div>
+
+      {patientData.patientInfo === null && !loading && (
+        <div className="empty-state">
+          <h3>Search for a patient to get started</h3>
+          <p>
+            Enter a patient's insurance number above to pull up their
+            medicines, doctor notes, lab reports, and an AI-generated
+            summary.
+          </p>
+          <div className="empty-state-features">
+            <div className="empty-state-feature">
+              <span>Medicines</span>
+            </div>
+            <div className="empty-state-feature">
+              <span>Doctor Notes</span>
+            </div>
+            <div className="empty-state-feature">
+              <span>Lab Reports</span>
+            </div>
+            <div className="empty-state-feature">
+              <span>AI Summary</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {patientData.patientInfo !== null && (
         <>
@@ -997,7 +1081,7 @@ const ServicesPage = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`tab ${activeTab === tab.id ? "active" : ""}`}
                 >
-                  {tab.label}
+                  {tab.icon} {tab.label}
                 </button>
               ))}
             </div>

@@ -13,6 +13,9 @@
         <module name="Meditrack" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="Meditrack" target="17" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">

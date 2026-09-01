@@ -1,6 +1,7 @@
 package com.pramukh.meditrack.Controller;
 
 import com.pramukh.meditrack.DTO.MedicineDto;
+import com.pramukh.meditrack.DTO.MedicineSummaryEntry;
 
 import com.pramukh.meditrack.Models.MedicineModel.DateWiseMedicine;
 import com.pramukh.meditrack.Models.MedicineModel.Medicine;
@@ -39,8 +40,8 @@ public class MedicineController {
     }
 
     @GetMapping("/getLast5Medicines/{insuranceNumber}")
-    public ResponseEntity<DateWiseMedicine> getLastFiveMedcines(@PathVariable String insuranceNumber) {
-        DateWiseMedicine medicines = medicineService.getLastMedicines(insuranceNumber);
+    public ResponseEntity<List<MedicineSummaryEntry>> getLastFiveMedcines(@PathVariable String insuranceNumber) {
+        List<MedicineSummaryEntry> medicines = medicineService.getLastMedicines(insuranceNumber);
         return new ResponseEntity<>(medicines, HttpStatus.OK);
     }
 }

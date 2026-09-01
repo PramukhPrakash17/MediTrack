@@ -42,7 +42,7 @@ public class DrugExtarctService {
 
         Doctor Question:
         """ + question;
-        DrugAgenticRouterDto response = chatClient.prompt().options(OpenAiChatOptions.builder().model("llama-3.1-8b-instant").temperature(0.0).build()).user(prompt).call().entity(DrugAgenticRouterDto.class);
+        DrugAgenticRouterDto response = chatClient.prompt().options(OpenAiChatOptions.builder().model("openai/gpt-oss-120b").temperature(0.0).build()).user(prompt).call().entity(DrugAgenticRouterDto.class);
         System.out.println("[EXTRACT-SERVICE] Step 1.1 Result: Extraction successful");
         System.out.println("  - Drug Name: " + response.getDrugName());
         System.out.println("  - Document Types: " + response.getDocumentType());

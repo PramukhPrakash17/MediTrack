@@ -1,5 +1,6 @@
 package com.pramukh.meditrack.Service;
 
+import com.pramukh.meditrack.DTO.NoteSummaryEntry;
 import com.pramukh.meditrack.DTO.NotesRequestDto;
 import com.pramukh.meditrack.ExceptionHandler.NotesNotFoundException;
 import com.pramukh.meditrack.Models.NotesModels.DateWiseNotes;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -59,14 +61,29 @@ public class NotesService {
         return notes.getDateWiseNotes();
     }
 
-    public DateWiseNotes getLatestNotes(String insuranceNumber) {
-        Notes notes =  notesRepository.findById(insuranceNumber).orElse(null);
-        if(notes==null || notes.getDateWiseNotes()==null)
-        {
-            return null;
+    /**
+     * The last 5 notes across all dates, most recent first - see
+     * MedicineService.getLastMedicines for why this flattens across dates
+     * instead of returning only the newest date-bucket wholesale.
+     */
+    public List<NoteSummaryEntry> getLatestNotes(String insuranceNumber) {
+        Notes notes = notesRepository.findById(insuranceNumber).orElse(null);
+        List<NoteSummaryEntry> result = new ArrayList<>();
+        if (notes == null || notes.getDateWiseNotes() == null) {
+            return result;
         }
         List<DateWiseNotes> dateWiseNotes = notes.getDateWiseNotes();
-        return dateWiseNotes.get(dateWiseNotes.size() - 1);
+        for (int i = dateWiseNotes.size() - 1; i >= 0 && result.size() < 5; i--) {
+            DateWiseNotes bucket = dateWiseNotes.get(i);
+            List<String> notesInBucket = bucket.getDoctornotes();
+            for (int j = notesInBucket.size() - 1; j >= 0 && result.size() < 5; j--) {
+                NoteSummaryEntry entry = new NoteSummaryEntry();
+                entry.setNote(notesInBucket.get(j));
+                entry.setRecordedDate(bucket.getDate());
+                result.add(entry);
+            }
+        }
+        return result;
     }
 
 }

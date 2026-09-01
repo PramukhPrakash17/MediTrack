@@ -2,6 +2,8 @@ package com.pramukh.practice.rag.Service;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,9 @@ public class RagService {
         this.chatClient = chatClientBuilder.build();
     }
 
-    public String getAnswer(String question) {
+
+
+    public String getAnswer( String question) {
 
         long totalTimeStart = System.nanoTime();
 
@@ -57,12 +61,11 @@ public class RagService {
 
         String context = buildContext(documents);
 
-        String prompt =
-                """
+        String prompt = """
                 You are a medical PDF assistant.
-        
+                
                 Answer the user's question using ONLY the provided PDF context.
-        
+                
                 Rules:
                 - Use ONLY the provided PDF context to answer the question.
                 - Do not use outside knowledge or invent any information.
@@ -73,15 +76,15 @@ public class RagService {
                 - Do not unnecessarily paraphrase or rewrite the information.
                 - Combine information from multiple retrieved sections only when needed to fully answer the question.
                 - Include only information relevant to the user's question.
-                - Keep the answer concise (2–4 sentences unless more detail is requested).
+                - Keep the answer concise (2–4 sentences unless more detail is requested), but slightly favor a bit more explanation over a bare minimum answer when the context supports it.
                 - Do not add assumptions, explanations, or medical advice that are not explicitly present in the context.
                 - Mention medications or treatments only if they are explicitly present in the retrieved context.
                 - Do not use headings, bullet points, markdown, or additional sections.
                 - Do not mention the PDF or say phrases such as "According to the PDF" or "Based on the provided context."
-        
+                
                 PDF Context:
                 %s
-        
+                
                 User Question:
                 %s
                 """.formatted(context, question);

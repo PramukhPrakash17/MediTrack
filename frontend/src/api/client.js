@@ -1,11 +1,8 @@
 // Direct base URL (no proxy or .env)
 const BASE_URL = "http://localhost:8080";
 
-export const createApiClient = (getToken) => {
-  const request = async (
-    path,
-    { headers = {}, auth = true, ...options } = {}
-  ) => {
+export const createApiClient = (baseUrl = BASE_URL) => {
+  const request = async (path, { headers = {}, ...options } = {}) => {
     const finalHeaders = new Headers({
       ...headers,
     });
@@ -15,12 +12,7 @@ export const createApiClient = (getToken) => {
       finalHeaders.set("Content-Type", "application/json");
     }
 
-    const token = getToken?.();
-    if (auth && token) {
-      finalHeaders.set("Authorization", `Bearer ${token}`);
-    }
-
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       headers: finalHeaders,
       ...options,
     });

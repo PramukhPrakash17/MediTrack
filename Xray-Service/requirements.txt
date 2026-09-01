@@ -1,0 +1,14 @@
+pandas
+scikit-learn
+PyYAML
+Pillow
+opencv-python
+matplotlib
+fastapi
+groq
+mcp
+ultralytics
+python-dotenv
+uvicorn[standard]
+python-multipart
+fastmcp

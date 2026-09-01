@@ -1,6 +1,7 @@
 package com.pramukh.meditrack.Service;
 
 import com.pramukh.meditrack.DTO.MedicineDto;
+import com.pramukh.meditrack.DTO.MedicineSummaryEntry;
 
 import com.pramukh.meditrack.ExceptionHandler.MedicineNotFoundException;
 import com.pramukh.meditrack.Models.MedicineModel.DateWiseMedicine;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -76,14 +78,33 @@ public class MedicineService {
         return medicalData.getDateWiseMedicines();
     }
 
-    public DateWiseMedicine getLastMedicines(String insuranceNumber) {
+    /**
+     * The last 5 medicines across all dates, most recent first - not just
+     * whatever the single latest date-bucket happens to contain. A new
+     * chat-added entry on a fresh day used to make this look like older
+     * entries had vanished, since the old version only ever returned the
+     * newest bucket wholesale.
+     */
+    public List<MedicineSummaryEntry> getLastMedicines(String insuranceNumber) {
         List<DateWiseMedicine> medicines = getMedicines(insuranceNumber);
-        if(medicines.isEmpty())
-        {
-            return null;
+        List<MedicineSummaryEntry> result = new ArrayList<>();
+        for (int i = medicines.size() - 1; i >= 0 && result.size() < 5; i--) {
+            DateWiseMedicine bucket = medicines.get(i);
+            List<Medicine> meds = bucket.getMedicines();
+            for (int j = meds.size() - 1; j >= 0 && result.size() < 5; j--) {
+                Medicine med = meds.get(j);
+                MedicineSummaryEntry entry = new MedicineSummaryEntry();
+                entry.setName(med.getName());
+                entry.setDosage(med.getDosage());
+                entry.setFrequency(med.getFrequency());
+                entry.setStartDate(med.getStartDate());
+                entry.setEndDate(med.getEndDate());
+                entry.setInstructions(med.getInstructions());
+                entry.setRecordedDate(bucket.getDate());
+                result.add(entry);
+            }
         }
-        return medicines.get(medicines.size() - 1);
-
+        return result;
     }
 }
 

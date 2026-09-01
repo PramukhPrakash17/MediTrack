@@ -1,0 +1,10 @@
+.venv
+venv
+__pycache__
+training_results
+FineTuning
+app/outputs
+app/Output
+app/Upload
+app/test images
+*.pyc

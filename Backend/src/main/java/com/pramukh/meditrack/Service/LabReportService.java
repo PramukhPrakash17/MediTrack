@@ -5,6 +5,7 @@ import com.google.cloud.documentai.v1.DocumentProcessorServiceClient;
 import com.google.cloud.documentai.v1.ProcessRequest;
 import com.google.cloud.documentai.v1.RawDocument;
 import com.google.protobuf.ByteString;
+import com.pramukh.meditrack.DTO.LabReportSummaryEntry;
 import com.pramukh.meditrack.Models.LabModels.DateWiseReports;
 import com.pramukh.meditrack.Models.LabModels.LabData;
 import com.pramukh.meditrack.Models.LabModels.LabReport;
@@ -120,14 +121,32 @@ public class LabReportService {
         return labData.getDateWiseReports();
     }
 
-    public DateWiseReports getLatestLabReports(String insuranceNumber) {
+    /**
+     * The last 5 lab report rows across all upload dates, most recent
+     * first - see MedicineService.getLastMedicines for why this flattens
+     * across dates instead of returning only the newest upload wholesale.
+     */
+    public List<LabReportSummaryEntry> getLatestLabReports(String insuranceNumber) {
         LabData labData = labRepo.findById(insuranceNumber).orElse(null);
+        List<LabReportSummaryEntry> result = new ArrayList<>();
         if (labData == null || labData.getDateWiseReports() == null) {
-            return null;
+            return result;
         }
         List<DateWiseReports> dateWiseReports = labData.getDateWiseReports();
-        DateWiseReports latestReport = dateWiseReports.get(dateWiseReports.size() - 1);
-
-        return latestReport;
+        for (int i = dateWiseReports.size() - 1; i >= 0 && result.size() < 5; i--) {
+            DateWiseReports bucket = dateWiseReports.get(i);
+            List<LabReport> reportsInBucket = bucket.getLabReports();
+            for (int j = reportsInBucket.size() - 1; j >= 0 && result.size() < 5; j--) {
+                LabReport report = reportsInBucket.get(j);
+                LabReportSummaryEntry entry = new LabReportSummaryEntry();
+                entry.setTestName(report.getTestName());
+                entry.setValue(report.getValue());
+                entry.setUnit(report.getUnit());
+                entry.setReferenceRange(report.getReferenceRange());
+                entry.setRecordedDate(bucket.getUploadDate());
+                result.add(entry);
+            }
+        }
+        return result;
     }
 }
