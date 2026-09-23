@@ -11,6 +11,7 @@ const ServicesPage = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
   const [patientData, setPatientData] = useState({
     patientInfo: null,
     medicines: null,
@@ -262,6 +263,7 @@ const ServicesPage = () => {
       setError(err.message || "Failed to fetch patient data");
     } finally {
       setLoading(false);
+      setHasSearched(true);
     }
   };
 
@@ -415,8 +417,7 @@ const ServicesPage = () => {
         med.dosage.trim() &&
         med.frequency.trim() &&
         med.startDate &&
-        med.endDate &&
-        med.instructions.trim()
+        med.endDate
     );
 
     if (validMedicines.length === 0 && !notes.trim() && !selectedFile) {
@@ -1041,6 +1042,11 @@ const ServicesPage = () => {
                 {summaryLoading ? "Getting Summary..." : "✨ AI Summary"}
               </button>
             </>
+          )}
+          {hasSearched && !loading && patientData.patientInfo === null && (
+            <button onClick={openAddPatientForm} className="add-patient-btn">
+              ➕ Add Patient Details
+            </button>
           )}
         </div>
         {error && <div className="error-message">{error}</div>}

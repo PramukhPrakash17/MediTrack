@@ -8,7 +8,7 @@ const Landing = () => {
         <div className="hero-content">
           <h1 className="hero-title">
             Streamline Patient Care with
-            <span className="highlight"> MediTrack</span>
+            <span className="highlight"> MediAI</span>
           </h1>
           <p className="hero-description">
             A comprehensive patient management system designed for healthcare

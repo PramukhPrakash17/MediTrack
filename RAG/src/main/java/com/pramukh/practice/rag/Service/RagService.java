@@ -1,6 +1,8 @@
 package com.pramukh.practice.rag.Service;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.metadata.Usage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
@@ -50,6 +52,8 @@ public class RagService {
 
         long searchTimeEnd = System.nanoTime();
 
+        logTopScoresForDiagnostics(retrievalQuery);
+
         /*
          * Do not call the LLM when no relevant PDF chunks were found.
          */
@@ -93,7 +97,9 @@ public class RagService {
 
         long llmStart = System.nanoTime();
 
-        String answer = chatClient.prompt().user(prompt).call().content();
+        ChatResponse chatResponse = chatClient.prompt().user(prompt).call().chatResponse();
+        String answer = chatResponse.getResult().getOutput().getText();
+        Usage usage = chatResponse.getMetadata().getUsage();
 
         long llmEnd = System.nanoTime();
         long totalEnd = System.nanoTime();
@@ -106,6 +112,12 @@ public class RagService {
         System.out.println("LLM generation time: " + toMs(llmEnd - llmStart) + " ms");
         System.out.println("Total request time: " + toMs(totalEnd - totalTimeStart) + " ms");
         System.out.println("Retrieved chunks: " + documents.size());
+        System.out.println("Context characters: " + context.length());
+        System.out.println("Prompt characters (context + instructions + question): " + prompt.length());
+        System.out.println("---- Actual token usage reported by the model provider ----");
+        System.out.println("Prompt tokens: " + usage.getPromptTokens());
+        System.out.println("Completion tokens: " + usage.getCompletionTokens());
+        System.out.println("Total tokens: " + usage.getTotalTokens());
         System.out.println("=====================================");
 
         return answer;
@@ -178,6 +190,26 @@ public class RagService {
         }
 
         return contextBuilder.toString();
+    }
+
+    /**
+     * Diagnostic only: runs an unfiltered search (no similarity threshold) so
+     * we can see the actual top scores even when they fall below
+     * SIMILARITY_THRESHOLD and the real search returns nothing. Does not
+     * affect the answer returned to the caller.
+     */
+    private void logTopScoresForDiagnostics(String retrievalQuery) {
+        SearchRequest diagnosticRequest = SearchRequest.builder().query(retrievalQuery).topK(TOP_K).build();
+        List<Document> diagnosticDocuments = vectorStore.similaritySearch(diagnosticRequest);
+
+        System.out.println("---------- Top similarity scores (diagnostic, threshold=" + SIMILARITY_THRESHOLD + ") ----------");
+        for (Document document : diagnosticDocuments) {
+            Object rawScore = document.getMetadata().get("distance");
+            Double distance = rawScore instanceof Number number ? number.doubleValue() : null;
+            boolean aboveThreshold = distance != null && (1 - distance) >= SIMILARITY_THRESHOLD;
+            System.out.println("Distance: " + distance + " | Above threshold: " + aboveThreshold);
+        }
+        System.out.println("---------------------------------------------------------------");
     }
 
     private long toMs(long nanoTime) {

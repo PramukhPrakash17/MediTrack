@@ -30,12 +30,35 @@ const ChatWidget = () => {
   const [error, setError] = useState("");
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const previousInsuranceNumberRef = useRef(activeInsuranceNumber);
 
   useEffect(() => {
     if (isOpen) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, loading, isOpen]);
+
+  // The doctor can switch patients from ServicesPage's search bar without
+  // ever touching this widget's own "New Patient" button - if we only reset
+  // on that button, the old patient's messages (and the backend's
+  // LangGraph thread history, keyed by consultation_id) would silently
+  // carry over into the new patient's conversation. Resetting here whenever
+  // the active patient actually changes keeps both in sync with whichever
+  // patient ServicesPage has selected, regardless of how it changed.
+  useEffect(() => {
+    const previous = previousInsuranceNumberRef.current;
+    previousInsuranceNumberRef.current = activeInsuranceNumber;
+    if (previous && activeInsuranceNumber && previous !== activeInsuranceNumber) {
+      api.post("/new-patient").catch(() => {});
+      setMessages([]);
+      setInput("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setLastRequest(null);
+      setError("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeInsuranceNumber]);
 
   if (!isAuthenticated) return null;
 
@@ -150,14 +173,14 @@ const ChatWidget = () => {
   return (
     <div className="chat-widget-root">
       {isOpen && (
-        <div className="chat-widget-panel" role="dialog" aria-label="MediTrack chat assistant">
+        <div className="chat-widget-panel" role="dialog" aria-label="MediAI chat assistant">
           <div className="chat-widget-header">
             <div className="chat-header-profile">
               <div className="chat-avatar" aria-hidden="true">
                 M
               </div>
               <div>
-                <h3>MediTrack Assistant</h3>
+                <h3>MediAI Assistant</h3>
                 <span className="chat-active-patient">
                   {activeInsuranceNumber
                     ? `Patient: ${activeInsuranceNumber}`
@@ -275,7 +298,7 @@ const ChatWidget = () => {
             </button>
             <textarea
               className="chat-text-input"
-              placeholder="Message MediTrack..."
+              placeholder="Message MediAI..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
