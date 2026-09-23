@@ -93,6 +93,21 @@ ADD_LAB_REPORT_DESCRIPTION_OVERRIDE = (
     "X-ray images or fracture analysis - use analyze_xray for that."
 )
 
+# get_summary is not backed by any MCP tool either - Backend exposes no MCP
+# tool for GET /api/summary/getSummary/{insuranceNumber} (only the frontend's
+# "AI Summary" button calls it directly today). Same hand-registration
+# approach as add_lab_report: the Orchestrator calls that REST endpoint
+# directly (see tool_node.py).
+GET_SUMMARY_TOOL_NAME = "get_summary"
+GET_SUMMARY_DESCRIPTION_OVERRIDE = (
+    "Get a short AI-generated summary of the current patient's condition, "
+    "combining their most recent medications, doctor notes, and lab reports. "
+    "Call this whenever the doctor asks for a summary, overview, or recap of "
+    "the patient. You do not need to know the patient's insurance number - "
+    "call the tool and it will report if none is available yet, or use it "
+    "automatically if a patient is already selected."
+)
+
 # Parameter names to hide from the LLM per tool - values the tool_node
 # injects server-side and the model must never invent or supply itself.
 # insuranceNumber is deliberately NOT here (see comment above) - only
@@ -151,7 +166,48 @@ class ToolRegistry:
                         "type": "object",
                         "properties": {
                             "insuranceNumber": {
-                                "type": "string",
+                                # Optional params aren't always omitted by the
+                                # model when unknown - it sometimes passes
+                                # explicit null instead. Groq's server-side
+                                # schema validation rejects null against a
+                                # bare "string" type even though the property
+                                # isn't required, so null must be allowed here
+                                # too (confirmed via a live 400: "expected
+                                # string, but got null").
+                                "type": ["string", "null"],
+                                "description": (
+                                    "The patient's insurance number - only fill "
+                                    "this in if the doctor has explicitly stated "
+                                    "it in this conversation, otherwise leave it "
+                                    "out."
+                                ),
+                            }
+                        },
+                        "required": [],
+                    },
+                },
+            }
+        )
+
+        self.llm_tool_schemas.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": GET_SUMMARY_TOOL_NAME,
+                    "description": GET_SUMMARY_DESCRIPTION_OVERRIDE,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "insuranceNumber": {
+                                # Optional params aren't always omitted by the
+                                # model when unknown - it sometimes passes
+                                # explicit null instead. Groq's server-side
+                                # schema validation rejects null against a
+                                # bare "string" type even though the property
+                                # isn't required, so null must be allowed here
+                                # too (confirmed via a live 400: "expected
+                                # string, but got null").
+                                "type": ["string", "null"],
                                 "description": (
                                     "The patient's insurance number - only fill "
                                     "this in if the doctor has explicitly stated "
@@ -207,12 +263,34 @@ class ToolRegistry:
 
     @staticmethod
     def _make_optional(parameters: dict, names: set[str]) -> dict:
-        """Drops names from `required` only - unlike _hide_params, the
-        property stays visible so the LLM can still fill it in when it
-        genuinely knows the value (see _OPTIONAL_OVERRIDES)."""
+        """Drops names from `required` and widens their type to allow null -
+        unlike _hide_params, the property stays visible so the LLM can still
+        fill it in when it genuinely knows the value (see
+        _OPTIONAL_OVERRIDES). The model doesn't always omit an optional
+        property it doesn't know - it sometimes passes explicit null - and
+        Groq's server-side schema validation rejects null against a bare
+        "string" type even though the property isn't required (confirmed via
+        a live 400: "expected string, but got null"), so null must be an
+        explicitly allowed type here too."""
         parameters = dict(parameters)
         if "required" in parameters:
             parameters["required"] = [
                 name for name in parameters["required"] if name not in names
             ]
+        properties = dict(parameters.get("properties", {}))
+        for name in names:
+            if name not in properties:
+                continue
+            schema = dict(properties[name])
+            current_type = schema.get("type")
+            if current_type is not None and "null" not in (
+                current_type if isinstance(current_type, list) else [current_type]
+            ):
+                schema["type"] = (
+                    [*current_type, "null"]
+                    if isinstance(current_type, list)
+                    else [current_type, "null"]
+                )
+            properties[name] = schema
+        parameters["properties"] = properties
         return parameters

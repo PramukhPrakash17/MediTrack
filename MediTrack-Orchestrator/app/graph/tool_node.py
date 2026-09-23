@@ -10,11 +10,22 @@ from app.mcp_client.tool_registry import (
     ADD_LAB_REPORT_TOOL_NAME,
     ADD_MEDICINE_TOOL_NAME,
     ADD_NOTE_TOOL_NAME,
+    GET_SUMMARY_TOOL_NAME,
     XRAY_TOOL_NAME,
     ToolRegistry,
 )
 
 _WRITE_TOOL_NAMES = {ADD_MEDICINE_TOOL_NAME, ADD_NOTE_TOOL_NAME, ADD_LAB_REPORT_TOOL_NAME}
+
+# "Not enough information" collapsing/dedup for multi-tool-call turns lives
+# in agent_node.py instead of here - it needs to see the whole turn's
+# accumulated tool results across however many separate agent<->tools passes
+# happened, which this node alone can't see (it only ever gets the batch of
+# tool_calls attached to the single most recent AIMessage).
+
+# get_summary is read-only but still patient-scoped, so it needs the same
+# insuranceNumber resolution as the write tools - it just isn't a write.
+_PATIENT_SCOPED_TOOL_NAMES = _WRITE_TOOL_NAMES | {GET_SUMMARY_TOOL_NAME}
 
 # Backend's /api/labreport/upload endpoint checks file.getContentType() with
 # exact string equality against these three values (including the
@@ -85,12 +96,13 @@ class MCPToolNode:
             arguments["temp_path"] = temp_path
             return await self._call_mcp_tool(tool_name, arguments, resolved_insurance_number=None)
 
-        if tool_name in _WRITE_TOOL_NAMES:
+        if tool_name in _PATIENT_SCOPED_TOOL_NAMES:
             insurance_number = state.get("insurance_number") or arguments.get("insuranceNumber")
             if not insurance_number:
+                verb = "generating a summary for" if tool_name == GET_SUMMARY_TOOL_NAME else "adding this"
                 return (
-                    "No patient is selected. Ask the doctor for the patient's "
-                    "insurance number before adding this.",
+                    f"No patient is selected. Ask the doctor for the patient's "
+                    f"insurance number before {verb}.",
                     None,
                     None,
                 )
@@ -105,6 +117,10 @@ class MCPToolNode:
                         insurance_number,
                     )
                 text = await self._upload_lab_report(insurance_number, temp_path)
+                return text, None, insurance_number
+
+            if tool_name == GET_SUMMARY_TOOL_NAME:
+                text = await self._get_summary(insurance_number)
                 return text, None, insurance_number
 
             arguments["insuranceNumber"] = insurance_number
@@ -159,3 +175,21 @@ class MCPToolNode:
             )
         except Exception as exc:
             return f"Tool 'add_lab_report' could not be executed: {exc}"
+
+    @staticmethod
+    async def _get_summary(insurance_number: str) -> str:
+        """Calls Backend's existing GET /api/summary endpoint directly -
+        get_summary has no MCP tool of its own."""
+        url = f"{settings.backend_base_url}/api/summary/getSummary/{insurance_number}"
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+                return response.text
+        except httpx.HTTPStatusError as exc:
+            return (
+                f"Tool 'get_summary' could not be executed: Backend returned "
+                f"{exc.response.status_code}: {exc.response.text}"
+            )
+        except Exception as exc:
+            return f"Tool 'get_summary' could not be executed: {exc}"

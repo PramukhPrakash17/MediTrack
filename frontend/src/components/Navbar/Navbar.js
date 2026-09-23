@@ -16,7 +16,7 @@ const Navbar = () => {
     <nav className="navbar">
       <div className="nav-container">
         <div className="nav-logo">
-          <h2>MediTrack</h2>
+          <h2>MediAI</h2>
         </div>
 
         <div className={`nav-menu ${isMenuOpen ? "active" : ""}`}>
@@ -25,6 +25,9 @@ const Navbar = () => {
           </Link>
           <Link to="/services" className="nav-link">
             Services
+          </Link>
+          <Link to="/references" className="nav-link">
+            References
           </Link>
           {isAuthenticated ? (
             <div className="nav-user-section">

@@ -16,9 +16,10 @@ class XrayDetectionService:
         print("model Loaded Successfully")
 
     def analyze_image(self, question: str, image: Image):
-        results = self.model(image)
+        results = self.model(image, conf=0.1, imgsz=1024)
         prediction = results[0]
         detection_count = len(prediction.boxes)
+        print(f"Detected box confidences: {prediction.boxes.conf.tolist()}")
         if detection_count > 0:
             highest_confidence = float(prediction.boxes.conf.max().item())
             annotatedImage = prediction.plot()

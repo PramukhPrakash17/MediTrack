@@ -5,6 +5,7 @@ import Landing from "./components/Landing/Landing";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import AuthPage from "./pages/AuthPage/AuthPage";
 import ServicesPage from "./pages/ServicesPage/ServicesPage";
+import ReferencesPage from "./pages/ReferencesPage/ReferencesPage";
 import ChatWidget from "./components/ChatWidget/ChatWidget";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { PatientProvider } from "./patient/PatientContext";
@@ -38,6 +39,14 @@ function App() {
                 element={
                   <Protected>
                     <ServicesPage />
+                  </Protected>
+                }
+              />
+              <Route
+                path="/references"
+                element={
+                  <Protected>
+                    <ReferencesPage />
                   </Protected>
                 }
               />
