@@ -23,9 +23,7 @@ The platform combines **Retrieval-Augmented Generation (RAG)**, **Large Language
 
 ### System Architecture
 
-<p align="center">
-  <img src="./meditrack-dark.svg" alt="MediTrack System Architecture" width="100%">
-</p>
+![MediTrack System Architecture](meditrack-dark.svg)
 
 MediTrack follows a **microservice-based architecture** with a LangGraph-powered orchestrator coordinating specialized AI services through the **Model Context Protocol (MCP)**.
 
@@ -118,6 +116,9 @@ MediTrack/
 ├── meditrack-dark.svg
 │   └── System architecture diagram
 │
+├── Workflow.svg
+│   └── MediTrack workflow diagram
+│
 └── docker-compose.yml
 ```
 
@@ -138,26 +139,9 @@ MediTrack/
 
 ### System Workflow
 
-```text
-Doctor
-   ↓
-React Frontend
-   ↓
-LangGraph + MCP Orchestrator
-   ↓
-┌─────────────────────────────────────┐
-│ Disease & Symptom RAG               │
-│ Drug-Information RAG                │
-│ X-ray Pre-Screening                 │
-│ Patient / Medical Data Backend      │
-└─────────────────────────────────────┘
-   ↓
-Grounded AI-Assisted Response
-   ↓
-Doctor
-```
+![MediTrack System Workflow](Workflow.svg)
 
-The doctor interacts with MediTrack through a unified interface. The **MCP orchestrator** interprets the request and selects the appropriate specialized service. The result is then returned to the doctor through the same consultation interface.
+The doctor interacts with MediTrack through a unified interface. The **MCP orchestrator** interprets each request and routes it to the appropriate specialized service. The selected service processes the request and returns the result to the doctor through the same consultation interface.
 
 ---
 
