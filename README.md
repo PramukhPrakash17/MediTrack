@@ -1,71 +1,179 @@
-# 🏥 MediTrack – AI-Powered Doctor Insight Application
+# 🏥 MediTrack – AI-Powered Clinical Decision Support System
 
-MediTrack is a healthcare-focused application designed to **simplify patient record management** by leveraging **retrieval-augmented generation, fine-tuned computer vision, and AI-powered document processing**. Built with **Spring Boot**, **Spring AI**, a **fine-tuned YOLOv8 model**, **Document AI**, and **Gemini 1.5 Pro**, it provides doctors with dataset-grounded answers, automated image detection, structured dashboards, and secure access to patient data.
+MediTrack is an **AI-powered clinical decision support system** designed to assist doctors with patient data management, medical knowledge retrieval, drug information, and X-ray pre-screening.
+
+The platform combines **Retrieval-Augmented Generation (RAG)**, **Large Language Models (LLMs)**, **YOLOv8**, **Google Document AI**, and **Model Context Protocol (MCP)** to provide grounded clinical assistance through a microservice-based architecture.
+
+> ⚠️ **Disclaimer:** MediTrack is a research prototype developed to support healthcare professionals. It is not intended to replace professional medical diagnosis, clinical judgment, or treatment decisions.
 
 ---
 
 ### Key Features
 
-- **Symptom-Based Clinical RAG** for grounded, hallucination-free Q&A over a medical encyclopedia.
-- **Agentic Drug-Information RAG** for natural-language drug queries resolved against a structured drug dataset.
-- **Fine-Tuned YOLOv8 X-ray Analysis** for automated image-based detection.
-- **Document AI Integration** for automated extraction from lab reports and medical scans.
-- **AI-Powered Summaries** with Gemini 1.5 Pro for patient history insights.
-- **Doctor Dashboard** – clear and organized view of patient history.
-- **Secure System** with JWT authentication and secured endpoints.
+- **Symptom-Based Clinical RAG** for grounded medical Q&A on diseases, symptoms, diagnosis, and treatment.
+- **Agentic Drug-Information RAG** for medication uses, side effects, safety, substitutes, and patient-specific considerations.
+- **Fine-Tuned YOLOv8 X-ray Pre-Screening** for detecting and highlighting potential fracture regions.
+- **Google Document AI Integration** for automated extraction of structured data from laboratory reports.
+- **AI-Powered Patient Summaries** combining recent lab results, medications, and doctor notes.
+- **MCP-Based AI Orchestration** using LangGraph to intelligently route requests across specialized clinical services.
+- **Consultation Context Management** to maintain patient-specific conversational context during an active consultation.
+- **Doctor-Focused Interface** for accessing patient records, AI assistance, medical reports, and X-ray analysis.
 
 ---
 
-## 🧩 System Components
+### System Architecture
 
-### 1. 📚 Symptom-Based Clinical RAG *(Spring Boot + Spring AI)*
-- Embeds a medical encyclopedia into **PGVector** and retrieves relevant sections using **Ollama** embeddings.
-- Expands user queries with domain-specific keywords (symptoms, causes, treatment, diagnosis, prognosis) before retrieval to improve section matching.
-- Applies a **similarity threshold** to filter out low-relevance chunks, and returns a clear "not enough information" response instead of hallucinating when nothing relevant is found.
-- Uses **Groq (Llama 3.1)** to generate concise answers that stay strictly grounded in retrieved PDF context, preserving original wording rather than freely paraphrasing.
+<p align="center">
+  <img src="./meditrack-dark.svg" alt="MediTrack System Architecture" width="100%">
+</p>
 
-### 2. 💊 Agentic Drug-Information RAG *(Spring Boot + Spring AI)*
-- **Agentic extraction step** parses the doctor's natural-language question to identify the drug name and relevant document types.
-- **Multi-stage drug resolution**: exact match → normalized name match → fallback formulation match, handling variations in dosage/form naming.
-- Retrieves **metadata-filtered vector context** (drug name + document type) rather than relying on semantic similarity alone.
-- LLM prompt is strictly grounded — answers only from the "Primary Drug Information" section, with few-shot examples guiding natural, doctor-facing phrasing instead of robotic dataset echoes.
+MediTrack follows a **microservice-based architecture** with a LangGraph-powered orchestrator coordinating specialized AI services through the **Model Context Protocol (MCP)**.
 
-### 3. 🩻 X-ray Analysis Service *(Python + YOLOv8, in progress)*
-- Fine-tuning a **YOLOv8** model on a labeled X-ray image dataset for automated detection.
-- Includes dataset preparation, validation, and multiple training experiments across resolutions (640px, 1024px) to optimize detection accuracy.
-- Being integrated as a complementary imaging-analysis service alongside the existing document and RAG pipelines.
-
-### 4. 📑 Document AI Processor
-- Extracts data from **lab reports, prescriptions, and scans**.
-- Uses **custom processors** and **fine-tuning with labeled samples**.
-- Automates unstructured-to-structured data conversion.
-
-### 5. 🤖 AI Summarization (Gemini 1.5 Pro)
-- Generates concise patient summaries.
-- Reduces manual review burden.
-- Handles large datasets with efficiency.
-
-### 6. 🩺 Doctor Dashboard
-- Provides a unified view of patient records.
-- Displays AI-generated patient history summaries.
-- Saves doctor's time and improves decision-making.
-
-### 7. 🔐 Security Layer
-- **JWT Tokens** for authentication.
-- **Secured API endpoints**.
+Based on the doctor's request, the orchestrator routes the query to the appropriate **Disease & Symptom RAG**, **Drug RAG**, **X-ray Analysis**, or **Patient Data** service.
 
 ---
 
-## 🔧 Technologies Used
+### Core Services
 
-| Tech / Service       | Description                                              |
-|-----------------------|-----------------------------------------------------------|
-| Spring Boot           | Backend framework for APIs & services                    |
-| Spring AI             | RAG orchestration, vector search, and LLM integration     |
-| PGVector              | Vector storage for embedded medical & drug documents      |
-| Ollama                | Local embedding generation for the symptom RAG service    |
-| Groq (Llama 3.1)      | LLM inference for grounded, dataset-strict responses      |
-| YOLOv8 (Python)       | Fine-tuned object detection for X-ray image analysis      |
-| Google Document AI    | Extracts medical report data automatically                |
-| Gemini 1.5 Pro        | AI-powered patient history summarization                  |
-| JWT Tokens            | Authentication and session management                     |
+#### 🩺 Disease & Symptom RAG
+
+Provides grounded responses to clinical questions related to diseases, symptoms, diagnosis, and treatment by retrieving relevant information from the medical knowledge base.
+
+**Technologies:** Spring Boot, Spring AI, PGVector, Ollama Embeddings, Cerebras
+
+#### 💊 Drug-Information RAG
+
+Processes medication-related questions and retrieves relevant information about drug uses, side effects, safety considerations, substitutes, and other available drug information.
+
+**Technologies:** Spring Boot, Spring AI, PGVector, Gemini Embeddings, Groq
+
+#### 🩻 X-ray Pre-Screening
+
+Uses a fine-tuned **YOLOv8** model to analyze uploaded X-ray images, detect potential fracture regions, and return the detected regions with confidence information.
+
+**Technologies:** Python, FastAPI, YOLOv8, OpenCV, Groq
+
+#### 📄 Medical Document Processing
+
+Uses **Google Document AI** to extract structured information such as test names, values, units, and reference ranges from uploaded laboratory reports.
+
+**Technologies:** Spring Boot, Google Document AI, MongoDB
+
+#### 🧠 Patient Summarization
+
+Combines recent laboratory results, prescribed medications, and doctor notes to generate a concise overview of the patient's available medical information.
+
+**Technologies:** Spring Boot, LLM, MongoDB
+
+#### 🔗 MCP Orchestration
+
+Uses **LangGraph** and **Model Context Protocol (MCP)** to connect and coordinate the specialized clinical services. The orchestrator determines which service should handle each doctor's request.
+
+**Technologies:** Python, FastAPI, LangGraph, LangChain, MCP
+
+---
+
+### Technology Stack
+
+| Category | Technologies |
+|---|---|
+| **Frontend** | React |
+| **Backend** | Java, Spring Boot |
+| **AI / RAG** | Spring AI, LangChain, LangGraph |
+| **LLMs** | Cerebras, Groq |
+| **Embeddings** | Ollama, Gemini |
+| **Vector Database** | PostgreSQL, PGVector |
+| **Medical Imaging** | YOLOv8, OpenCV |
+| **Document Processing** | Google Document AI |
+| **Databases** | MySQL, MongoDB, PostgreSQL |
+| **AI Orchestration** | Model Context Protocol (MCP), LangGraph |
+| **API Development** | Spring REST, FastAPI |
+| **Deployment** | Docker, Docker Compose |
+
+---
+
+### Project Structure
+
+```text
+MediTrack/
+│
+├── Backend/
+│   └── Patient data, medical reports, notes and summaries
+│
+├── RAG/
+│   └── Disease and symptom RAG service
+│
+├── Drug-RAG-Service/
+│   └── Drug-information RAG service
+│
+├── Xray-Service/
+│   └── YOLOv8 X-ray pre-screening service
+│
+├── MediTrack-Orchestrator/
+│   └── LangGraph and MCP orchestration
+│
+├── frontend/
+│   └── React doctor interface
+│
+├── meditrack-dark.svg
+│   └── System architecture diagram
+│
+└── docker-compose.yml
+```
+
+---
+
+### Service Overview
+
+| Service | Purpose | Port |
+|---|---|---:|
+| **Frontend** | Doctor-facing user interface | 3000 |
+| **Backend** | Patient and medical data management | 8080 |
+| **Disease RAG** | Disease and symptom assistance | 8081 |
+| **Drug RAG** | Drug-information assistance | 8082 |
+| **X-ray Service** | X-ray fracture pre-screening | 8083 |
+| **MCP Orchestrator** | AI service routing and orchestration | 8094 |
+
+---
+
+### System Workflow
+
+```text
+Doctor
+   ↓
+React Frontend
+   ↓
+LangGraph + MCP Orchestrator
+   ↓
+┌─────────────────────────────────────┐
+│ Disease & Symptom RAG               │
+│ Drug-Information RAG                │
+│ X-ray Pre-Screening                 │
+│ Patient / Medical Data Backend      │
+└─────────────────────────────────────┘
+   ↓
+Grounded AI-Assisted Response
+   ↓
+Doctor
+```
+
+The doctor interacts with MediTrack through a unified interface. The **MCP orchestrator** interprets the request and selects the appropriate specialized service. The result is then returned to the doctor through the same consultation interface.
+
+---
+
+### Limitations
+
+- **X-ray Input Quality** – The model performs best on clinical X-ray images similar to those used during training and may be less reliable on photographed, edited, stock, or colorized images.
+- **Knowledge-Source Dependency** – RAG responses are limited by the information available in the underlying medical and drug datasets.
+- **External AI Services** – Some functionality depends on external LLM APIs and their availability or rate limits.
+- **Research Prototype** – MediTrack has not undergone clinical validation and should not be used as an autonomous diagnostic system.
+
+---
+
+### Future Work
+
+- **Larger X-ray Dataset** – Train the detection model using more diverse medical images to improve robustness and detection performance.
+- **Extended Medical Imaging** – Expand AI pre-screening capabilities to other imaging modalities such as **CT and MRI**.
+- **Expanded Medical Knowledge** – Integrate additional validated medical knowledge sources for broader clinical information retrieval.
+
+---
